@@ -30,7 +30,7 @@ button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
 @keyframes shine{0%,60%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
 @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.96)}}
 /* ---------- HUD */
-#hud{pointer-events:none}
+#hud{pointer-events:none;z-index:7}
 #hud.show #pauseBtn{pointer-events:auto}
 #pauseBtn{position:absolute;top:max(8px,env(safe-area-inset-top));left:50%;transform:translateX(-50%);width:42px;height:34px;border-radius:8px;background:#00000060;border:1px solid #ffffff30;display:flex;align-items:center;justify-content:center;gap:5px}
 #pauseBtn i{display:block;width:5px;height:15px;background:#fff;border-radius:2px}
@@ -258,7 +258,7 @@ body.touchui #toast{top:auto;bottom:12px}
 .rung.cur{transform:translateY(-8px) scale(1.12);border-color:var(--gold);box-shadow:0 0 0 2px var(--gold),0 0 30px rgba(255,194,58,.7);z-index:2}
 .rung.boss{width:min(15vw,29vh,120px);border-color:#ff3a3a}
 .rung.boss .rn{color:#ff8080}
-.ladder-info{position:absolute;left:0;right:0;top:calc(min(18vh,70px) + min(17vw,32vh,140px));text-align:center;font-style:italic}
+.ladder-info{position:absolute;left:0;right:0;top:calc(min(18vh,70px) + min(20vw,39vh,160px) + 16px);text-align:center;font-style:italic}
 .ladder-info .li-a{font-size:min(2.8vw,5.6vh,24px);text-shadow:0 3px 0 #000}
 .ladder-info .li-b{font-size:11px;letter-spacing:.2em;opacity:.7;margin-top:4px}
 .ladder-btns{position:absolute;right:var(--sr);bottom:max(14px,env(safe-area-inset-bottom));display:flex;gap:12px;align-items:center}

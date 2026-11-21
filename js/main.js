@@ -113,6 +113,7 @@ function buildShowScene() {
   const rimA = new THREE.DirectionalLight('#ff6a20', 3.0); rimA.position.set(-5, 4, -5);
   const rimB = new THREE.DirectionalLight('#6a8aff', 1.6); rimB.position.set(5, 3, -4);
   show.add(key, rimA, rimB, new THREE.HemisphereLight('#8a7aff', '#2a1020', 0.35));
+  const fill = new THREE.DirectionalLight('#fff4ea', 0); fill.position.set(-2, 3, 8); show.add(fill); showStuff.fill = fill;
   showStuff.rimA = rimA;
   showFx = new FX(show);
   show.fog = new THREE.Fog('#0a0612', 12, 40);
@@ -654,7 +655,7 @@ function layoutTouch() {
   const place = (id, size, off, bottom) => { const el = $(id); el.style.width = el.style.height = (size * K) + 'px'; el.style[side] = `calc(${inset} + ${off * K}px)`; el.style[other] = 'auto'; el.style.bottom = (bottom * K) + 'px'; el.style.opacity = op; };
   place('#bA', 84, 96, 22); place('#bB', 70, 118, 122); place('#bJ', 76, 10, 70); place('#bS', 58, 22, 166); place('#bG', 50, 196, 30);
   const z = $('#joyzone'); z.style[other] = '0'; z.style[side] = 'auto';
-  const jb = $('#joybase'); jb.style.transform = `scale(${K})`; jb.style.opacity = '';
+  const jb = $('#joybase'); jb.style.transform = `scale(${K})`; jb.style.opacity = ''; jb.style.top = ''; jb.style.left = L ? `calc(100% - max(30px, env(safe-area-inset-right)) - 160px)` : '';
   $('#touch').style.setProperty('--topac', op);
 }
 
@@ -671,8 +672,9 @@ const SCREENS = ['loading', 'title', 'menu', 'select', 'setup', 'ladder', 'locke
 let clickGuard = 0, swallowClick = false;
 document.addEventListener('pointerdown', () => { swallowClick = false; }, true);
 document.addEventListener('click', e => { if ((swallowClick || performance.now() < clickGuard) && !e.target.closest('#touch')) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+let curScreen = null;
 function showScreen(id) {
-  clickGuard = performance.now() + 380; swallowClick = true;
+  if (id !== curScreen) { clickGuard = performance.now() + 380; swallowClick = true; curScreen = id; }
   for (const s of SCREENS) { const el = $('#' + s); if (el) el.classList.toggle('show', s === id || (id === 'pause' && s === 'hud')); }
   $('#touch').classList.toggle('show', (id === 'hud') && (isTouch || params.has('touch')));
   document.body.classList.toggle('touchui', isTouch || params.has('touch'));
@@ -1113,12 +1115,12 @@ function loop(now) {
     if (showPuppet) {
       const p = showPuppet;
       p.anim.t += dt; p.demoT = (p.demoT || 0) + dt;
-      if ((mode === 'select' || mode === 'locker') && p.state === 'idle' && p.demoT > 0.35 && !p.demoDone && !p.victory) { p.demoDone = true; p.moveKey = 'ftilt'; p.move = p.moves.ftilt; p.state = 'attack'; p.stateT = 0; }
+      if (mode === 'select' && p.state === 'idle' && p.demoT > 0.35 && !p.demoDone && !p.victory) { p.demoDone = true; p.moveKey = 'ftilt'; p.move = p.moves.ftilt; p.state = 'attack'; p.stateT = 0; }
       if (p.state === 'attack') { p.stateT++; if (p.stateT >= p.move.t) { p.state = 'idle'; p.stateT = 0; } }
       p.animate(dt, time);
       showStuff.ped.rotation.y += dt * 0.3;
-      showStuff.beam.material.opacity = mode === 'locker' ? 0.07 : 0.25;
-      p.rig.root.rotation.y = mode === 'select' ? Math.sin(time * 0.6) * 0.35 - 0.1 : mode === 'locker' ? Math.sin(time * 0.5) * 0.6 : -0.25;
+      showStuff.beam.material.opacity = mode === 'locker' ? 0.07 : 0.25; showStuff.fill.intensity = mode === 'locker' ? 1.8 : 0;
+      p.rig.root.rotation.y = mode === 'select' ? Math.sin(time * 0.6) * 0.35 - 0.1 : mode === 'locker' ? Math.sin(time * 0.5) * 0.35 - 0.95 : -0.25;
       if (Math.random() < dt * 20) showFx.spawn((Math.random() - 0.5) * 4, 0.4, (Math.random() - 0.5) * 4, 0, 1 + Math.random() * 2, 0, ...new THREE.Color(CHARS[p.id].color).multiplyScalar(2).toArray(), 2, 0.08 + Math.random() * 0.1, 0, 0, 0);
     }
     showStuff.dome.material.uniforms.t.value = time;
