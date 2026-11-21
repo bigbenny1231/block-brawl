@@ -74,6 +74,20 @@ export class Sound {
       case 'count': this.tone('square', 440, 440, 0.18, 0.14, 0, null, 0.4); this.tone('sine', 880, 880, 0.18, 0.08); break;
       case 'go': [523, 659, 784, 1046].forEach((f, i) => this.tone('sawtooth', f, f, 0.6, 0.08, 0, null, 0.6)); this.noise(0.6, 0.3, 'highpass', 2000, 8000, 0.5, 0, null, 0.6); break;
       case 'game': [392, 494, 587, 784].forEach((f, i) => this.tone('sawtooth', f, f * 0.98, 1.2, 0.08, i * 0.02, null, 0.8)); this.noise(1.2, 0.4, 'lowpass', 3000, 200, 0.7, 0, null, 0.8); break;
+      case 'fuse': this.noise(0.12, 0.12, 'highpass', 5000, 7000, 1); break;
+      case 'rev': this.tone('sawtooth', 200, 520, 0.12, 0.1); this.noise(0.1, 0.08, 'bandpass', 2000, 4000, 2); break;
+      case 'spring': this.tone('square', 200, 1200, 0.22, 0.14); this.tone('sine', 400, 1600, 0.2, 0.1, 0.03); break;
+      case 'fireball': this.tone('square', 700, 300, 0.1, 0.12); this.noise(0.12, 0.12, 'bandpass', 1200, 600, 1.5); break;
+      case 'coin': this.tone('square', 988, 988, 0.06, 0.09); this.tone('square', 1319, 1319, 0.2, 0.09, 0.06); break;
+      case 'web': this.noise(0.14, 0.2, 'highpass', 3000, 1500, 1); this.tone('sine', 1800, 600, 0.1, 0.06); break;
+      case 'item': [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.05)); break;
+      case 'pickup': this.tone('square', 520, 1040, 0.12, 0.12); this.tone('triangle', 1040, 1560, 0.15, 0.08, 0.06); break;
+      case 'heal': for (let i = 0; i < 6; i++) this.tone('sine', 600 + i * 120, 640 + i * 120, 0.15, 0.08, i * 0.05); break;
+      case 'powerup': for (let i = 0; i < 8; i++) this.tone('square', 300 * Math.pow(1.12, i), 300 * Math.pow(1.12, i), 0.07, 0.07, i * 0.04); break;
+      case 'zap': this.tone('sawtooth', 120, 90, 0.4, 0.2); this.noise(0.4, 0.3, 'highpass', 3000, 6000, 1); break;
+      case 'levelup': [523, 659, 784, 1046, 1318].forEach((f, i) => this.tone('square', f, f, 0.22, 0.09, i * 0.08, null, 0.6)); break;
+      case 'tick': this.tone('square', 1200, 1200, 0.03, 0.05, 0, null, 0.6); break;
+      case 'buy': this.tone('square', 988, 988, 0.08, 0.1, 0, null, 0.6); this.tone('square', 1568, 1568, 0.25, 0.1, 0.08, null, 0.6); break;
       case 'cheer': for (let i = 0; i < 30; i++) this.noise(0.4 + Math.random() * 0.5, 0.04, 'bandpass', 800 + Math.random() * 2000, 1000 + Math.random() * 1500, 3, Math.random() * 0.8, null, 0.5); break;
     }
   }

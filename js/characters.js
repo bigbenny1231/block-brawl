@@ -4,10 +4,12 @@ import * as THREE from 'three';
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;
 
+let CUR_XF = null;
 function paint(geo, color, jitter = 0.05, glow = 1) {
   const n = geo.attributes.position.count;
   const arr = new Float32Array(n * 3);
   _c.set(color);
+  if (CUR_XF) CUR_XF(_c, String(color).toLowerCase(), glow > 1);
   const j = 1 + (Math.random() * 2 - 1) * jitter;
   for (let i = 0; i < n; i++) {
     arr[i * 3] = _c.r * j * glow; arr[i * 3 + 1] = _c.g * j * glow; arr[i * 3 + 2] = _c.b * j * glow;
@@ -337,9 +339,215 @@ export const CHARS = {
 };
 export const CHAR_ORDER = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore'];
 
-export function buildChar(id) {
+
+
+// ---------------------------------------------------------------- v2 helpers
+// fill the surface of a box with voxel cells of mixed palette colours (creeper/golem textures)
+function voxFill(P_, w, h, d, x, y, z, pal, cell = 0.125, kind) {
+  const nx = Math.max(1, Math.round(w / cell)), ny = Math.max(1, Math.round(h / cell)), nz = Math.max(1, Math.round(d / cell));
+  const cx = w / nx, cy = h / ny, cz = d / nz;
+  for (let i = 0; i < nx; i++) for (let j = 0; j < ny; j++) for (let k = 0; k < nz; k++) {
+    if (i > 0 && i < nx - 1 && j > 0 && j < ny - 1 && k > 0 && k < nz - 1) continue;
+    P_.box(cx, cy, cz, x - w / 2 + cx * (i + 0.5), y - h / 2 + cy * (j + 0.5), z - d / 2 + cz * (k + 0.5), pal[Math.floor(Math.random() * pal.length)], { j: 0.02, kind });
+  }
+  return P_;
+}
+
+// ---------------------------------------------------------------- Fizz (exploding green mob)
+function buildFizz(mats) {
+  const pal = ['#4fae3c', '#3d9a2e', '#62c24a', '#2f7d24', '#7fd067', '#9ad98a'];
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) { voxFill(L, 0.25, 0.42, 0.25, 0, -0.21, 0.2, pal); voxFill(L, 0.25, 0.42, 0.25, 0, -0.21, -0.2, pal); L.box(0.27, 0.06, 0.27, 0, -0.4, 0.2, '#25621c').box(0.27, 0.06, 0.27, 0, -0.4, -0.2, '#25621c'); }
+  const torso = voxFill(new P(), 0.5, 0.78, 0.3, 0, 0.39, 0, pal);
+  const head = voxFill(new P(), 0.56, 0.56, 0.56, 0, 0.28, 0, pal)
+    .box(0.13, 0.13, 0.02, 0.12, 0.34, 0.285, '#101010').box(0.13, 0.13, 0.02, -0.12, 0.34, 0.285, '#101010')
+    .box(0.12, 0.17, 0.02, 0, 0.2, 0.285, '#101010').box(0.06, 0.13, 0.02, 0.09, 0.1, 0.285, '#101010').box(0.06, 0.13, 0.02, -0.09, 0.1, 0.285, '#101010')
+    .box(0.04, 0.04, 0.025, 0.1, 0.36, 0.29, '#ffffff', { kind: 'glow', glow: 1.5 }).box(0.04, 0.04, 0.025, -0.14, 0.36, 0.29, '#ffffff', { kind: 'glow', glow: 1.5 });
+  const armR = new P(), armL = new P();
+  return assemble({ h: 1.82, hipY: 0.42, neckY: 1.2, shY: 1.0, shX: 0.2, handY: -0.2, legX: 0.13, torso, head, armR, armL, legR, legL }, mats);
+}
+
+// ---------------------------------------------------------------- Rattle (skeleton archer)
+function buildRattle(mats) {
+  const bone = '#dcdcd2', boneD = '#a8a89e', dark = '#2a2a2a';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) L.box(0.12, 0.8, 0.12, 0, -0.4, 0, bone).box(0.15, 0.06, 0.15, 0, -0.4, 0, boneD).box(0.16, 0.06, 0.22, 0, -0.78, 0.03, boneD);
+  const torso = new P().box(0.1, 0.78, 0.1, 0, 0.39, -0.05, boneD).box(0.5, 0.1, 0.1, 0, 0.05, -0.02, bone);
+  for (let i = 0; i < 4; i++) torso.box(0.46 - i * 0.04, 0.05, 0.22, 0, 0.36 + i * 0.11, 0, bone);
+  torso.box(0.5, 0.08, 0.24, 0, 0.76, 0, bone);
+  const head = new P().box(0.46, 0.46, 0.46, 0, 0.23, 0, bone)
+    .box(0.12, 0.1, 0.02, 0.11, 0.25, 0.235, dark).box(0.12, 0.1, 0.02, -0.11, 0.25, 0.235, dark)
+    .box(0.06, 0.06, 0.02, 0, 0.15, 0.235, dark).box(0.3, 0.035, 0.02, 0, 0.07, 0.235, dark)
+    .box(0.04, 0.04, 0.025, 0.11, 0.25, 0.24, '#7fdcff', { kind: 'glow', glow: 2.5 }).box(0.04, 0.04, 0.025, -0.11, 0.25, 0.24, '#7fdcff', { kind: 'glow', glow: 2.5 });
+  const mkArm = A => A.box(0.11, 0.8, 0.11, 0, -0.33, 0, bone).box(0.13, 0.05, 0.13, 0, -0.33, 0, boneD);
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  const weapon = new P().box(0.06, 0.06, 0.5, 0, 0.32, 0.1, '#6b4a2a', { rx: -0.6 }).box(0.06, 0.06, 0.5, 0, -0.32, 0.1, '#6b4a2a', { rx: 0.6 }).box(0.07, 0.18, 0.07, 0, 0, 0.0, '#4a3018')
+    .box(0.015, 0.92, 0.015, 0, 0, -0.06, '#f0f0f0', { kind: 'glow', glow: 1.2 });
+  return assemble({ h: 2.05, hipY: 0.82, neckY: 1.62, shY: 1.52, shX: 0.32, handY: -0.68, legX: 0.12, torso, head, armR, armL, legR, legL, weapon }, mats);
+}
+
+// ---------------------------------------------------------------- Ironclad (iron golem heavy)
+function buildIronclad(mats) {
+  const iron = ['#cfcac0', '#bdb8ad', '#d8d4cb', '#aaa498'], vine = '#4a8a2e';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) { voxFill(L, 0.4, 0.85, 0.4, 0, -0.42, 0, iron, 0.2); L.box(0.12, 0.3, 0.02, 0.08, -0.3, 0.205, vine); }
+  const torso = voxFill(new P(), 1.15, 0.95, 0.62, 0, 0.5, 0, iron, 0.2).box(0.2, 0.5, 0.02, -0.3, 0.55, 0.315, vine).box(0.14, 0.3, 0.02, 0.35, 0.35, 0.315, vine)
+    .box(0.7, 0.3, 0.4, 0, 0.0, 0, '#9a948a').box(0.12, 0.12, 0.02, 0.36, 0.7, 0.315, '#e03030');
+  const head = voxFill(new P(), 0.5, 0.55, 0.5, 0, 0.27, 0.05, iron, 0.125)
+    .box(0.12, 0.28, 0.12, 0, 0.12, 0.36, '#b08a70').box(0.36, 0.06, 0.04, 0, 0.36, 0.31, '#7a746a')
+    .box(0.08, 0.06, 0.02, 0.1, 0.3, 0.31, '#ff3a2a', { kind: 'glow', glow: 3 }).box(0.08, 0.06, 0.02, -0.1, 0.3, 0.31, '#ff3a2a', { kind: 'glow', glow: 3 });
+  const mkArm = A => { voxFill(A, 0.36, 1.55, 0.36, 0, -0.68, 0, iron, 0.2); return A.box(0.1, 0.5, 0.02, 0.05, -0.4, 0.185, vine); };
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  armL.box(0.05, 0.05, 0.05, 0, -1.5, 0.2, '#e03030').box(0.12, 0.12, 0.04, 0, -1.48, 0.22, '#e83a3a');
+  return assemble({ h: 2.95, hipY: 0.85, neckY: 1.85, shY: 1.72, shX: 0.76, handY: -1.45, legX: 0.3, torso, head, armR, armL, legR, legL }, mats);
+}
+
+// ---------------------------------------------------------------- Bolt (speedy blue hedgehog)
+function buildBolt(mats) {
+  const blue = '#1e5fe0', tan = '#f2c894', white = '#ffffff', red = '#e02a2a';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) L.geo(new THREE.CylinderGeometry(0.06, 0.06, 0.42, 8), 0, -0.2, 0, blue).box(0.2, 0.15, 0.4, 0, -0.42, 0.08, red).box(0.21, 0.05, 0.41, 0, -0.38, 0.08, white).box(0.2, 0.05, 0.4, 0, -0.5, 0.08, '#f0f0f0');
+  const torso = new P().geo(new THREE.SphereGeometry(0.3, 14, 10), 0, 0.28, 0, blue, { j: 0.01 }).geo(new THREE.SphereGeometry(0.22, 12, 8), 0, 0.26, 0.12, tan, { j: 0.01 });
+  const head = new P().geo(new THREE.SphereGeometry(0.36, 16, 12), 0, 0.3, 0, blue, { j: 0.01 })
+    .geo(new THREE.SphereGeometry(0.18, 12, 8), 0, 0.18, 0.24, tan, { j: 0.01 })
+    .geo(new THREE.SphereGeometry(0.05, 8, 6), 0, 0.22, 0.42, '#111111')
+    .geo(new THREE.SphereGeometry(0.13, 10, 8), 0.09, 0.36, 0.25, white, { j: 0 }).geo(new THREE.SphereGeometry(0.13, 10, 8), -0.09, 0.36, 0.25, white, { j: 0 })
+    .geo(new THREE.SphereGeometry(0.055, 8, 6), 0.11, 0.36, 0.36, '#2ab84a', { j: 0 }).geo(new THREE.SphereGeometry(0.055, 8, 6), -0.07, 0.36, 0.36, '#2ab84a', { j: 0 })
+    .box(0.22, 0.03, 0.03, 0, 0.1, 0.37, '#5a2a1a', { rz: 0.15 });
+  for (const [y, rx, len] of [[0.5, -0.9, 0.55], [0.32, -1.3, 0.6], [0.14, -1.7, 0.5], [0.42, -1.1, 0.5]]) for (const sx of [-0.12, 0.12]) head.geo(new THREE.ConeGeometry(0.11, len, 6), sx, y, -0.28, blue, { rx, j: 0.02 });
+  head.geo(new THREE.ConeGeometry(0.09, 0.22, 4), 0.2, 0.62, -0.05, blue, { rz: -0.4 }).geo(new THREE.ConeGeometry(0.09, 0.22, 4), -0.2, 0.62, -0.05, blue, { rz: 0.4 });
+  const mkArm = A => A.geo(new THREE.CylinderGeometry(0.05, 0.05, 0.36, 8), 0, -0.18, 0, tan).geo(new THREE.SphereGeometry(0.1, 10, 8), 0, -0.4, 0, white);
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  return assemble({ h: 1.6, hipY: 0.5, neckY: 0.95, shY: 0.92, shX: 0.3, handY: -0.4, legX: 0.13, torso, head, armR, armL, legR, legL }, mats);
+}
+
+// ---------------------------------------------------------------- Pipper (mustached plumber)
+function buildPipper(mats) {
+  const red = '#e0262a', blue = '#2848c8', skin = '#f2b88a', brown = '#5a3218', white = '#ffffff';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) L.box(0.22, 0.5, 0.24, 0, -0.25, 0, blue).box(0.25, 0.14, 0.34, 0, -0.5, 0.05, brown);
+  const torso = new P().geo(new THREE.CapsuleGeometry(0.3, 0.25, 6, 14), 0, 0.38, 0, red, { j: 0.01 })
+    .geo(new THREE.CylinderGeometry(0.315, 0.3, 0.38, 14), 0, 0.2, 0, blue, { j: 0.01 })
+    .box(0.26, 0.2, 0.05, 0, 0.42, 0.28, blue).box(0.06, 0.32, 0.04, 0.14, 0.52, 0.24, blue, { rx: -0.25 }).box(0.06, 0.32, 0.04, -0.14, 0.52, 0.24, blue, { rx: -0.25 })
+    .geo(new THREE.SphereGeometry(0.04, 8, 6), 0.13, 0.4, 0.31, '#ffd23a', { kind: 'metal' }).geo(new THREE.SphereGeometry(0.04, 8, 6), -0.13, 0.4, 0.31, '#ffd23a', { kind: 'metal' });
+  const head = new P().geo(new THREE.SphereGeometry(0.3, 16, 12), 0, 0.28, 0, skin, { j: 0.01 })
+    .geo(new THREE.SphereGeometry(0.11, 10, 8), 0, 0.24, 0.3, '#f0a070', { j: 0 })
+    .box(0.34, 0.08, 0.1, 0, 0.14, 0.27, '#1a1008').box(0.1, 0.06, 0.08, 0.17, 0.12, 0.24, '#1a1008', { rz: 0.4 }).box(0.1, 0.06, 0.08, -0.17, 0.12, 0.24, '#1a1008', { rz: -0.4 })
+    .box(0.06, 0.1, 0.02, 0.08, 0.36, 0.28, white).box(0.06, 0.1, 0.02, -0.08, 0.36, 0.28, white).box(0.035, 0.07, 0.025, 0.08, 0.35, 0.285, '#2040a0').box(0.035, 0.07, 0.025, -0.08, 0.35, 0.285, '#2040a0')
+    .geo(new THREE.SphereGeometry(0.31, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, 0.33, -0.01, red, { j: 0.01 })
+    .geo(new THREE.CylinderGeometry(0.22, 0.24, 0.04, 16), 0, 0.33, 0.24, red, { rx: 0.15 })
+    .geo(new THREE.CylinderGeometry(0.1, 0.1, 0.02, 16), 0, 0.48, 0.25, white, { rx: Math.PI / 2 - 0.6 })
+    .box(0.36, 0.1, 0.2, 0, 0.3, -0.18, brown);
+  const mkArm = A => A.geo(new THREE.CylinderGeometry(0.08, 0.08, 0.36, 8), 0, -0.16, 0, red).geo(new THREE.SphereGeometry(0.11, 10, 8), 0, -0.38, 0, white);
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  return assemble({ h: 1.72, hipY: 0.55, neckY: 1.2, shY: 1.08, shX: 0.36, handY: -0.38, legX: 0.14, torso, head, armR, armL, legR, legL }, mats);
+}
+
+// ---------------------------------------------------------------- Webline (web-slinging masked hero)
+function buildWebline(mats) {
+  const red = '#d8202a', blue = '#2040b0', web = '#3a0a0e';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) { L.box(0.2, 0.9, 0.22, 0, -0.45, 0, blue).box(0.21, 0.32, 0.23, 0, -0.76, 0, red); for (let i = 0; i < 4; i++) L.box(0.212, 0.012, 0.232, 0, -0.65 - i * 0.07, 0, web); }
+  const torso = new P().box(0.48, 0.72, 0.26, 0, 0.38, 0, red).box(0.2, 0.72, 0.265, 0.2, 0.36, 0, blue).box(0.2, 0.72, 0.265, -0.2, 0.36, 0, blue).box(0.3, 0.3, 0.27, 0, 0.55, 0, red)
+    .box(0.06, 0.16, 0.02, 0, 0.5, 0.14, '#0a0a0a').box(0.22, 0.03, 0.02, 0, 0.53, 0.141, '#0a0a0a', { rz: 0.5 }).box(0.22, 0.03, 0.02, 0, 0.53, 0.141, '#0a0a0a', { rz: -0.5 }).box(0.22, 0.03, 0.02, 0, 0.46, 0.141, '#0a0a0a', { rz: 0.3 }).box(0.22, 0.03, 0.02, 0, 0.46, 0.141, '#0a0a0a', { rz: -0.3 });
+  for (let i = 0; i < 4; i++) torso.box(0.31, 0.012, 0.275, 0, 0.45 + i * 0.07, 0, web);
+  const head = new P().geo(new THREE.SphereGeometry(0.24, 16, 12), 0, 0.25, 0, red, { j: 0.01 });
+  for (let i = 0; i < 6; i++) head.geo(new THREE.TorusGeometry(0.245, 0.006, 4, 24), 0, 0.25, 0, web, { ry: (i / 6) * Math.PI });
+  head.geo(new THREE.SphereGeometry(0.09, 10, 8), 0.09, 0.3, 0.19, '#ffffff', { kind: 'glow', glow: 1.6 }).geo(new THREE.SphereGeometry(0.09, 10, 8), -0.09, 0.3, 0.19, '#ffffff', { kind: 'glow', glow: 1.6 })
+    .box(0.06, 0.06, 0.06, 0.1, 0.36, 0.21, '#0a0a0a', { rz: 0.5 }).box(0.06, 0.06, 0.06, -0.1, 0.36, 0.21, '#0a0a0a', { rz: -0.5 });
+  const mkArm = A => { A.box(0.15, 0.4, 0.16, 0, -0.08, 0, blue).box(0.14, 0.42, 0.15, 0, -0.45, 0, red); for (let i = 0; i < 4; i++) A.box(0.152, 0.012, 0.162, 0, -0.35 - i * 0.08, 0, web); return A; };
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  const weapon = new P().box(0.05, 0.05, 0.05, 0, 0, 0.05, '#e0e0e0');
+  return assemble({ h: 2.0, hipY: 0.92, neckY: 1.66, shY: 1.55, shX: 0.32, handY: -0.66, legX: 0.12, torso, head, armR, armL, legR, legL, weapon }, mats);
+}
+
+Object.assign(CHARS, {
+  fizz: { id: 'fizz', name: 'FIZZ', title: 'The Walking Fuse', build: buildFizz, inspired: 'Minecraft creeper',
+    color: '#4fd03c', w: 0.7, h: 1.82, weight: 0.95, run: 7.6, air: 6.2, jump: 16, dj: 14.5, grav: 1.0, fall: 16, jumps: 1, reach: 0.95, power: 1.05,
+    stats: { power: 4, speed: 2, weight: 3, jump: 3 }, nSpecial: 'BIG FUSE', upSpecial: 'BLAST HOP', desc: 'Silent and green. Charges up and detonates. Hurts himself a little, hurts you a lot.', fx: ['#c8ff80', '#4fd03c'], keep: ['#101010'], unlock: { level: 2 } },
+  rattle: { id: 'rattle', name: 'RATTLE', title: 'Bone Archer', build: buildRattle, inspired: 'Minecraft skeleton',
+    color: '#bfe6ff', w: 0.55, h: 2.05, weight: 0.82, run: 8.8, air: 7.0, jump: 17, dj: 15.5, grav: 0.95, fall: 15.5, jumps: 1, reach: 1.0, power: 0.92,
+    stats: { power: 2, speed: 4, weight: 1, jump: 4 }, nSpecial: 'BONE ARROW', upSpecial: 'RATTLE RISE', desc: 'Light and rattly. Keeps foes away with lightning-fast arrows.', fx: ['#e8f8ff', '#7fdcff'], keep: [], unlock: { level: 3 } },
+  ironclad: { id: 'ironclad', name: 'IRONCLAD', title: 'Village Guardian', build: buildIronclad, inspired: 'Minecraft iron golem',
+    color: '#e0dcd0', w: 1.2, h: 2.95, weight: 1.6, run: 6.4, air: 5.0, jump: 14.8, dj: 13, grav: 1.12, fall: 18, jumps: 1, reach: 1.45, power: 1.38,
+    stats: { power: 5, speed: 1, weight: 5, jump: 1 }, nSpecial: 'IRON TOSS', upSpecial: 'IRON LEAP', desc: 'A walking wall of iron. Huge reach, colossal launches.', fx: ['#ffffff', '#ff5040'], keep: ['#e03030', '#e83a3a', '#ff3a2a'], unlock: { level: 5 } },
+  bolt: { id: 'bolt', name: 'BOLT', title: 'Sonic-Speed Hedgehog', build: buildBolt, inspired: 'Sonic the Hedgehog',
+    color: '#2a7aff', w: 0.75, h: 1.6, weight: 0.85, run: 13.5, air: 8.2, jump: 18, dj: 15.5, grav: 1.05, fall: 17, jumps: 1, reach: 0.85, power: 0.9,
+    stats: { power: 2, speed: 5, weight: 2, jump: 4 }, nSpecial: 'SPIN DASH', upSpecial: 'SPRING BOOST', desc: 'Fastest thing alive. Revs up a spin dash and scatters rings when hit.', fx: ['#8ad0ff', '#2a7aff'], keep: ['#f2c894', '#ffffff', '#111111', '#f0f0f0'] },
+  pipper: { id: 'pipper', name: 'PIPPER', title: 'Pipe-Fixing Hero', build: buildPipper, inspired: 'Mario',
+    color: '#ff3a3a', w: 0.72, h: 1.72, weight: 1.0, run: 8.8, air: 6.8, jump: 18.5, dj: 16, grav: 1.05, fall: 16, jumps: 1, reach: 0.9, power: 1.0,
+    stats: { power: 3, speed: 3, weight: 3, jump: 5 }, nSpecial: 'FIREBALL', upSpecial: 'COIN UPPERCUT', desc: 'Jumps higher than anyone. Bouncing fireballs and a coin-popping uppercut.', fx: ['#ffd040', '#ff6a20'], keep: ['#f2b88a', '#f0a070', '#1a1008', '#ffffff', '#5a3218', '#2040a0'] },
+  webline: { id: 'webline', name: 'WEBLINE', title: 'Friendly Wall-Crawler', build: buildWebline, inspired: 'Spider-Man',
+    color: '#ff2a3a', w: 0.6, h: 2.0, weight: 0.95, run: 9.6, air: 7.6, jump: 18, dj: 16, grav: 0.98, fall: 16, jumps: 1, reach: 1.0, power: 0.98,
+    stats: { power: 3, speed: 4, weight: 2, jump: 5 }, nSpecial: 'WEB SHOT', upSpecial: 'WEB SWING', desc: 'Agile and tricky. Webs foes in place, then swings out of trouble.', fx: ['#ffffff', '#ff4050'], keep: ['#ffffff', '#0a0a0a'], unlock: { level: 4 } },
+});
+CHARS.blockjack.inspired = 'Minecraft Steve'; CHARS.bristle.inspired = 'Minecraft piglin'; CHARS.voidwalker.inspired = 'Minecraft enderman'; CHARS.gogo.inspired = 'Minions'; CHARS.malgore.inspired = 'Piglin warlord (Mal Gosha)';
+CHARS.blockjack.keep = ['#c8936a', '#ffffff', '#3d33b8']; CHARS.bristle.keep = ['#e3a096', '#c9827a', '#f2b6aa', '#ffffff', '#f6ecd2'];
+CHARS.voidwalker.keep = []; CHARS.gogo.keep = ['#ffffff', '#6b3d1c', '#0a0a0a', '#18181a']; CHARS.malgore.keep = ['#efe2c0'];
+CHARS.malgore.unlock = null;
+CHAR_ORDER.push('bolt', 'pipper', 'webline', 'fizz', 'rattle', 'ironclad');
+
+// ---------------------------------------------------------------- palettes (skins)
+const hsl = {};
+const hueTo = (target, sat = null, lmul = 1) => (c) => { c.getHSL(hsl); c.setHSL(target, sat ?? Math.max(hsl.s, 0.35), Math.min(1, hsl.l * lmul)); };
+export const PALETTES = {
+  default: { name: 'CLASSIC', fn: null },
+  shadow: { name: 'SHADOW', fn: c => { c.getHSL(hsl); c.setHSL(hsl.h, hsl.s * 0.25, hsl.l * 0.35); } },
+  gold: { name: 'GILDED', fn: c => { c.getHSL(hsl); c.setHSL(0.12, 0.85, 0.25 + hsl.l * 0.55); } },
+  frost: { name: 'FROST', fn: c => { c.getHSL(hsl); c.setHSL(0.55, 0.45, 0.35 + hsl.l * 0.6); } },
+  crimson: { name: 'CRIMSON', fn: c => { c.getHSL(hsl); c.setHSL(0.99, 0.75, hsl.l * 0.85); } },
+  neon: { name: 'NEON', fn: c => { c.getHSL(hsl); c.setHSL((hsl.h + 0.5) % 1, 1, Math.min(0.7, hsl.l * 1.2 + 0.1)); } },
+  // signature alts
+  greenbro: { name: 'GREEN BROTHER', only: 'pipper', fn: c => { c.getHSL(hsl); if ((hsl.h < 0.06 || hsl.h > 0.94) && hsl.s > 0.5) c.setHSL(0.36, 0.75, hsl.l * 0.85); } },
+  darkhog: { name: 'DARK RIVAL', only: 'bolt', fn: c => { c.getHSL(hsl); if (hsl.h > 0.55 && hsl.h < 0.7) c.setHSL(0.66, 0.2, 0.08); else if (hsl.h < 0.05 && hsl.s > 0.5) c.setHSL(0.0, 0.9, 0.45); } },
+  symbiote: { name: 'SYMBIOTE', only: 'webline', fn: c => { c.getHSL(hsl); c.setHSL(0.7, 0.15, hsl.l * 0.18); } },
+  charged: { name: 'CHARGED', only: 'fizz', fn: c => { c.getHSL(hsl); c.setHSL(0.5, 0.9, hsl.l * 1.1); } },
+  wither: { name: 'WITHERED', only: 'rattle', fn: c => { c.getHSL(hsl); c.setHSL(0, 0, hsl.l * 0.2); } },
+  netherite: { name: 'NETHERITE', only: 'ironclad', fn: c => { c.getHSL(hsl); c.setHSL(0.8, 0.1, hsl.l * 0.3); } },
+};
+export const HATS = {
+  none: { name: 'NONE' }, crown: { name: 'ROYAL CROWN' }, tophat: { name: 'TOP HAT' }, party: { name: 'PARTY HAT' }, halo: { name: 'HALO' },
+  horns: { name: 'VIKING HORNS' }, shades: { name: 'COOL SHADES' }, phones: { name: 'HEADPHONES' }, propeller: { name: 'PROPELLER CAP' },
+};
+function buildHat(id, mats) {
+  const p = new P();
+  switch (id) {
+    case 'crown': p.box(0.5, 0.14, 0.5, 0, 0.07, 0, '#f5c542', { kind: 'metal' }); for (let i = 0; i < 4; i++) p.box(0.09, 0.14, 0.09, Math.cos(i * 1.57) * 0.2, 0.2, Math.sin(i * 1.57) * 0.2, '#f5c542', { kind: 'metal' }); p.box(0.08, 0.08, 0.03, 0, 0.08, 0.26, '#ff2a4a', { kind: 'glow', glow: 2 }); break;
+    case 'tophat': p.geo(new THREE.CylinderGeometry(0.34, 0.34, 0.04, 16), 0, 0.02, 0, '#151515').geo(new THREE.CylinderGeometry(0.22, 0.22, 0.42, 16), 0, 0.23, 0, '#1a1a1a').geo(new THREE.CylinderGeometry(0.225, 0.225, 0.08, 16), 0, 0.08, 0, '#c0202a'); break;
+    case 'party': p.geo(new THREE.ConeGeometry(0.2, 0.5, 12), 0, 0.25, 0, '#ff4ab0').geo(new THREE.SphereGeometry(0.06, 8, 6), 0, 0.52, 0, '#ffe040', { kind: 'glow', glow: 1.6 }); break;
+    case 'halo': p.geo(new THREE.TorusGeometry(0.24, 0.035, 8, 24), 0, 0.22, 0, '#fff0a0', { kind: 'glow', glow: 3, rx: Math.PI / 2 }); break;
+    case 'horns': p.geo(new THREE.SphereGeometry(0.3, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, -0.02, 0, '#8a8f99', { kind: 'metal' }).geo(new THREE.ConeGeometry(0.07, 0.34, 8), 0.3, 0.14, 0, '#f0e8d0', { rz: -0.9 }).geo(new THREE.ConeGeometry(0.07, 0.34, 8), -0.3, 0.14, 0, '#f0e8d0', { rz: 0.9 }); break;
+    case 'shades': p.box(0.46, 0.09, 0.03, 0, -0.16, 0.0, '#0a0a0a').box(0.18, 0.11, 0.035, 0.12, -0.17, 0.005, '#101828', { kind: 'metal' }).box(0.18, 0.11, 0.035, -0.12, -0.17, 0.005, '#101828', { kind: 'metal' }); break;
+    case 'phones': p.geo(new THREE.TorusGeometry(0.3, 0.035, 6, 20, Math.PI), 0, -0.12, 0, '#202020').box(0.08, 0.18, 0.16, 0.3, -0.14, 0, '#ff3a5a').box(0.08, 0.18, 0.16, -0.3, -0.14, 0, '#ff3a5a'); break;
+    case 'propeller': p.geo(new THREE.SphereGeometry(0.28, 12, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0, -0.02, 0, '#3a7aff').box(0.04, 0.12, 0.04, 0, 0.3, 0, '#ffd23a').box(0.5, 0.02, 0.08, 0, 0.36, 0, '#ff3a3a'); break;
+    default: return null;
+  }
+  return p.mesh(mats);
+}
+
+export function buildChar(id, cos = {}) {
   const mats = makeMats();
-  const rig = CHARS[id].build(mats);
+  const c = CHARS[id];
+  const pal = PALETTES[cos.skin] && PALETTES[cos.skin].fn;
+  const keep = new Set((c.keep || []).map(k => k.toLowerCase()));
+  CUR_XF = pal ? (col, hex, isGlow) => { if (!keep.has(hex) && !isGlow) pal(col); } : null;
+  let rig;
+  try { rig = c.build(mats); } finally { CUR_XF = null; }
   rig.mats = mats;
+  if (cos.hat && cos.hat !== 'none') {
+    const hat = buildHat(cos.hat, mats);
+    if (hat) {
+      rig.root.updateMatrixWorld(true);
+      const box = new THREE.Box3().setFromObject(rig.head);
+      const hp = new THREE.Vector3(); rig.head.getWorldPosition(hp);
+      const sizeX = box.max.x - box.min.x;
+      hat.position.y = box.max.y - hp.y - 0.02;
+      const k = Math.max(0.7, Math.min(1.8, sizeX / 0.55));
+      hat.scale.setScalar(k);
+      if (cos.hat === 'shades' || cos.hat === 'phones') hat.position.y = (box.max.y - hp.y) * 0.62;
+      if (cos.hat === 'shades') hat.position.z = (box.max.z - box.min.z) * 0.5 - 0.01;
+      rig.head.add(hat); rig.hat = hat;
+    }
+  }
   return rig;
 }

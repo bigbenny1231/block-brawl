@@ -49,6 +49,14 @@ export class AI {
       return inp;
     }
     if (!t) { return inp; }
+    if (f.state === 'grab' && f.grabbed) { if (f.stateT > 12 + Math.random() * 20) { const out = Math.sign(f.x) || f.facing; if (f.grabbed.pct > 90 && Math.random() < 0.5) inp.y = 1; else inp.x = Math.random() < 0.7 ? out : -out; } return inp; }
+    if (f.state === 'grabbed') { if (Math.random() < 0.25 * (L.aggr + 0.2)) inp.attackP = true; return inp; }
+    if (f.held && t && Math.abs(t.x - f.x) < 9 && Math.abs(t.y - f.y) < 3 && Math.random() < 0.08) { f.facing = Math.sign(t.x - f.x) || f.facing; inp.x = f.facing; inp.attackP = true; return inp; }
+    if (this.itemTarget && !f.held && ['idle', 'run', 'air', 'landing'].includes(f.state)) {
+      const it = this.itemTarget;
+      if (!it.alive) this.itemTarget = null;
+      else { const d = it.x - f.x; inp.x = Math.abs(d) > 0.3 ? Math.sign(d) : 0; if (it.y > f.y + 1.5 && f.grounded && Math.random() < 0.1) { inp.jumpP = true; inp.jumpH = true; this.jumpHeld = 12; } if (Math.abs(f.x) > m.x1 - 0.8 && Math.sign(inp.x) === Math.sign(f.x)) inp.x = 0; return inp; }
+    }
     if (!['idle', 'run', 'crouch', 'air', 'shield', 'landing'].includes(f.state)) { if (f.state === 'attack' && !f.grounded) inp.x = Math.sign(t.x - f.x) * 0.5; return inp; }
     const dx = t.x - f.x, dy = (t.y + t.h * 0.4) - (f.y + f.h * 0.4), adx = Math.abs(dx), dir = Math.sign(dx) || 1;
     const reach = f.w * 0.5 + 0.9 * f.c.reach + t.w * 0.5;
@@ -92,6 +100,11 @@ export class AI {
         if (id === 'bristle' && f.grounded && adx > 2 && adx < 8 && Math.abs(dy) < 1 && Math.abs(f.x + dir * 6) < edge + 1) { inp.x = dir * 0.5; inp.specialP = true; return inp; }
         if (id === 'voidwalker' && adx > 3 && adx < 7 && Math.abs(dy) < 1.5 && Math.abs(t.x) < edge - 0.5) { inp.x = dir; inp.specialP = true; return inp; }
         if (id === 'malgore' && f.grounded && adx < 3.2 && Math.abs(dy) < 1.5) { inp.specialP = true; return inp; }
+        if ((id === 'rattle' || id === 'pipper' || id === 'webline') && adx > 3 && adx < 12 && Math.abs(dy) < 1.8) { f.facing = dir; inp.x = dir * 0.3; inp.specialP = true; return inp; }
+        if (id === 'bolt' && f.grounded && adx > 3 && adx < 9 && Math.abs(dy) < 1 && Math.abs(f.x + dir * 7) < edge + 1) { f.facing = dir; inp.x = dir * 0.5; inp.specialP = true; return inp; }
+        if ((id === 'fizz' || id === 'ironclad') && f.grounded && adx < (id === 'fizz' ? 2.4 : 2.8) && Math.abs(dy) < 1.5) { f.facing = dir; inp.specialP = true; return inp; }
+      }
+      if (adx < reach * 0.8 && Math.abs(dy) < 1 && f.grounded && (t.state === 'shield' || Math.random() < 0.08)) { f.facing = dir; inp.attackP = true; inp.shieldH = true; return inp;
       }
       // occasional jump toward
       if (dy > 1.5 && f.grounded && Math.random() < 0.5) { inp.jumpP = true; inp.jumpH = true; this.jumpHeld = 12; inp.x = dir; return inp; }

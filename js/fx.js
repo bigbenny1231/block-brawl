@@ -116,6 +116,14 @@ export class FX {
     f.active = true; f.t = 0; f.d = dur; f.size = size; f.s.visible = true; f.s.position.set(x, y, z);
     f.s.material.color.set(color).multiplyScalar(1.3); f.s.material.rotation = Math.random() * Math.PI;
   }
+  explosion(x, y, r = 2.5, small = false) {
+    const k = small ? 0.5 : 1;
+    this.flash(x, y, 0.6, r * 2.2 * k, 0.22, '#ffd080');
+    this.burst(x, y, 0.3, '#ffb040', Math.floor(60 * k), 13 * r / 2.5, 0.55, 0.55 * k, { drag: 3, bright: 1.6 });
+    this.burst(x, y, 0.3, '#ff4010', Math.floor(40 * k), 8 * r / 2.5, 0.8, 0.45 * k, { drag: 2, bright: 1.4, up: 2 });
+    this.ring(x, y, 0.2, r * 1.6, 0.35, '#ffa040');
+    for (let i = 0; i < 3; i++) this.dust(x + (Math.random() - 0.5) * r, y - 0.2 + Math.random() * r * 0.5, Math.floor(6 * k), '#555050', 1.6 * k);
+  }
   koBlast(x, y, dirx, diry, color) {
     const b = this.beams.find(b => !b.active) || this.beams[0];
     b.active = true; b.t = 0; b.d = 1.3; b.m.visible = true;

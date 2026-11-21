@@ -203,7 +203,8 @@ class Game {
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
-    this.pool = { block: [], banana: [], pillar: [] };
+    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [] };
+    this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
   }
   sfx(n, k) { sound.sfx(n, k); }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
@@ -227,7 +228,8 @@ class Game {
     key.shadow.camera.left = -16; key.shadow.camera.right = 16; key.shadow.camera.top = 14; key.shadow.camera.bottom = -10; key.shadow.camera.near = 1; key.shadow.camera.far = 60;
     key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -0.0004; key.shadow.normalBias = 0.03; setShadow(key);
     this.fighters = cfg.players.map((p, i) => {
-      const f = new Fighter(this, i, p.char, p.cpu, p.level);
+      const f = new Fighter(this, i, p.char, p.cpu, p.level, p.cos || {});
+      if (p.boss) { f.boss = true; f.baseSize = f.size = 1.7; }
       const [sx, sy] = st.spawns[i];
       f.reset(sx, sy + 0.5, sx > 0 ? -1 : 1); f.anim.faceVis = f.facing;
       f.stocks = this.attract ? 99 : (cfg.stocks || 3);
@@ -289,21 +291,62 @@ class Game {
     this.phase = 'gameset'; this.phaseT = 0; this.winner = winner; this.timeScale = 0.35;
     banner('GAME!', true); sound.sfx('game'); sound.music(null);
   }
-  spawnProjectile(owner, type) {
-    const own = this.projectiles.filter(p => p.owner === owner).length;
-    if (own >= 3) return;
+  spawnProjectile(owner, type, opts) {
+    const own = this.projectiles.filter(p => p.owner === owner && p.type === type).length;
+    if (own >= (type === 'bomb' ? 9 : 3)) return;
     let p;
     if (type === 'block') {
       p = this.take('block', () => new THREE.Mesh(this.blockGeo, this.blockMats));
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.75, vx: owner.facing * 12.5, vy: 8, grav: 30, life: 100, r: 0.42, spin: -owner.facing * 10,
         hb: { dmg: 8, kb: 6, g: 0.9, a: 40, r: 0.42 }, color: '#7fd06a', breakColor: '#8a6a40' });
-    } else {
+    } else if (type === 'banana') {
       p = this.take('banana', makeBanana);
       Object.assign(p, { x: owner.x + owner.facing * 0.9, y: owner.y + owner.h * 0.5, vx: owner.facing * 19, vy: 0.5, grav: 3, life: 55, r: 0.36, spin: -owner.facing * 18,
         hb: { dmg: 6, kb: 5, g: 0.7, a: 30, r: 0.36 }, color: '#ffe060', breakColor: '#ffe060' });
+    } else if (type === 'arrow') {
+      p = this.take('arrow', makeArrow);
+      Object.assign(p, { x: owner.x + owner.facing * 0.8, y: owner.y + owner.h * 0.62, vx: owner.facing * 26, vy: 0.8, grav: 4, life: 50, r: 0.3, spin: 0, aim: true,
+        hb: { dmg: 6, kb: 4.5, g: 0.6, a: 25, r: 0.3 }, color: '#e8e0d0', breakColor: '#c8b898' });
+    } else if (type === 'fireball') {
+      p = this.take('fireball', makeFireball);
+      Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.6, vx: owner.facing * 11, vy: -2, grav: 30, bounce: 8.5, life: 95, r: 0.3, spin: -owner.facing * 14,
+        hb: { dmg: 5, kb: 4, g: 0.5, a: 35, r: 0.3 }, color: '#ff8020', breakColor: '#ff6010', glowTrail: true });
+    } else if (type === 'web') {
+      p = this.take('web', makeWebBall);
+      Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.65, vx: owner.facing * 18, vy: 0, grav: 0, life: 40, r: 0.4, spin: 6,
+        hb: { dmg: 3, kb: 2, g: 0, a: 20, r: 0.4, web: true }, color: '#ffffff', breakColor: '#ffffff' });
+    } else if (type === 'bomb') {
+      p = this.take('bomb', makeTNT);
+      Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.8, vx: owner.facing * 15 + owner.vx * 0.3, vy: 7, grav: 28, life: 120, r: 0.4, spin: -owner.facing * 8,
+        hb: { dmg: 18, kb: 9, g: 1.4, a: 55, r: 0.4 }, color: '#ff4030', breakColor: '#ff8030', explode: 2.6 });
     }
+    if (opts) Object.assign(p, opts);
     p.owner = owner; p.type = type; p.mesh.visible = true; p.mesh.rotation.set(0, 0, 0); p.mesh.position.set(p.x, p.y, 0);
     this.projectiles.push(p);
+  }
+  explode(x, y, owner, hb, r, hitOwner, small) {
+    for (const t of this.fighters) {
+      if (t.state === 'dead' || (t === owner && !hitOwner)) continue;
+      const cx = clamp(x, t.x - t.w / 2, t.x + t.w / 2), cy = clamp(y, t.y, t.y + t.h);
+      if ((x - cx) ** 2 + (y - cy) ** 2 > r * r) continue;
+      const dir = Math.sign(t.x - x) || t.facing * -1;
+      const res = t.takeHit(t === owner ? null : owner, { ...hb, r }, dir, x, y);
+      if (res && res !== 'shield') this.onHitFx(owner, res, cx, cy);
+    }
+    this.fx.explosion ? this.fx.explosion(x, y, r, small) : this.fx.burst(x, y, 0.4, '#ffb040', 50, 12, 0.7, 0.5);
+    sound.sfx(small ? 'heavy' : 'boom'); this.shake(small ? 0.5 : 1.2); if (!small) flash(0.3);
+  }
+  webLine(f, ax, ay) {
+    const hx = f.x + f.facing * 0.3, hy = f.y + f.h * 0.95;
+    const dx = ax - hx, dy = ay - hy, L = Math.hypot(dx, dy);
+    const m = this.webMesh; m.visible = true; m.position.set((ax + hx) / 2, (ay + hy) / 2, 0); m.scale.set(1, L, 1); m.rotation.set(0, 0, Math.atan2(dy, dx) - Math.PI / 2);
+    this.webT = 2;
+  }
+  spring(x, y) {
+    const d = this.take('spring', makeSpring);
+    Object.assign(d, { x, y, life: 40, max: 40, delay: 0, spring: true });
+    d.mesh.visible = true; d.mesh.position.set(x, y, 0); d.mesh.scale.setScalar(1);
+    this.decor.push(d);
   }
   take(type, make) {
     const free = this.pool[type].find(o => !o.mesh.visible);
@@ -311,6 +354,9 @@ class Game {
     const mesh = make(); mesh.castShadow = true; world.add(mesh); const o = { mesh }; this.pool[type].push(o); return o;
   }
   release(o) { o.mesh.visible = false; }
+  throwHeld(f, inp) { if (this.items) this.items.throwHeld(f, inp); }
+  dropHeld(f) { if (this.items) this.items.dropHeld(f); }
+  setHammer(f, on) { if (this.items) this.items.setHammer(f, on); }
   pillarFx(f) {
     for (let i = 0; i < 3; i++) {
       const d = this.take('pillar', () => new THREE.Mesh(new THREE.BoxGeometry(1, 1, 1), this.pillarMat.clone()));
@@ -333,13 +379,21 @@ class Game {
       if (this.phase === 'gameset' && f === this.winner) inp = EMPTY;
       f.update(inp);
     });
+    if (this.webT > 0 && --this.webT === 0) this.webMesh.visible = false;
+    if (this.items) this.items.update(live);
     // projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.vy -= p.grav * DT; p.x += p.vx * DT; p.y += p.vy * DT; p.life--;
-      p.mesh.position.set(p.x, p.y, 0); p.mesh.rotation.z += p.spin * DT; p.mesh.rotation.y += p.spin * 0.3 * DT;
-      if (this.frame % 2 === 0) this.fx.trail(p.x, p.y, p.color, 0.35);
+      p.mesh.position.set(p.x, p.y, 0);
+      if (p.aim) p.mesh.rotation.set(0, 0, Math.atan2(p.vy, p.vx)); else { p.mesh.rotation.z += p.spin * DT; p.mesh.rotation.y += p.spin * 0.3 * DT; }
+      if (this.frame % 2 === 0) this.fx.trail(p.x, p.y, p.color, p.glowTrail ? 0.5 : 0.35);
       let dead = p.life <= 0;
+      if (p.bounce && p.vy < 0) {
+        for (const pl of this.stage.plats) {
+          if (p.x > pl.x0 && p.x < pl.x1 && p.y - p.r <= pl.top && p.y - p.r - p.vy * DT >= pl.top - 0.05) { p.y = pl.top + p.r; p.vy = p.bounce; break; }
+        }
+      }
       for (const t of this.fighters) {
         if (dead || t === p.owner || t.state === 'dead') continue;
         const cx = clamp(p.x, t.x - t.w / 2, t.x + t.w / 2), cy = clamp(p.y, t.y, t.y + t.h);
@@ -349,14 +403,19 @@ class Game {
         }
       }
       const m = this.stage.main;
-      if (!dead && p.x > m.x0 && p.x < m.x1 && p.y < m.top + 0.2 && p.y > m.bottom) dead = true;
+      if (!dead && p.x > m.x0 && p.x < m.x1 && p.y < m.top + (p.bounce ? -0.1 : 0.2) && p.y > m.bottom) dead = true;
       if (Math.abs(p.x) > 30 || p.y < -15) dead = true;
-      if (dead) { this.fx.burst(p.x, p.y, 0.2, p.breakColor, 14, 6, 0.5, 0.3, { grav: 2 }); if (p.type === 'block') sound.sfx('break'); this.release(p); this.projectiles.splice(i, 1); }
+      if (dead) {
+        if (p.explode) this.explode(p.x, p.y, p.owner, p.hb, p.explode, true);
+        else { this.fx.burst(p.x, p.y, 0.2, p.breakColor, 14, 6, 0.5, 0.3, { grav: 2 }); if (p.type === 'block') sound.sfx('break'); }
+        this.release(p); this.projectiles.splice(i, 1);
+      }
     }
     for (let i = this.decor.length - 1; i >= 0; i--) {
       const d = this.decor[i];
       if (d.delay > 0) { d.delay--; continue; }
       d.life--; const k = d.life / d.max;
+      if (d.spring) { const s = d.life > 32 ? 1 + (40 - d.life) * 0.12 : 1.4 - (32 - d.life) * 0.01; d.mesh.scale.set(1, s, 1); if (d.life < 10) d.mesh.scale.multiplyScalar(d.life / 10); if (d.life <= 0) { this.release(d); this.decor.splice(i, 1); } continue; }
       d.mesh.scale.setScalar(Math.min(0.95, (1 - k) * 6) * 0.95); d.mesh.material.opacity = Math.min(1, k * 3);
       if (d.life <= 0) { this.release(d); this.decor.splice(i, 1); }
     }
@@ -418,6 +477,41 @@ function makeBanana() {
   g.add(body, tip);
   g.castShadow = true; body.castShadow = true;
   return g;
+}
+function stdM(color, extra = {}) { return new THREE.MeshStandardMaterial({ color, roughness: 0.55, ...extra }); }
+function makeArrow() {
+  const g = new THREE.Group();
+  const shaft = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.05, 0.05), stdM('#d8c8a8'));
+  const tip = new THREE.Mesh(new THREE.ConeGeometry(0.08, 0.2, 4), stdM('#c0c8d0', { metalness: 0.8, roughness: 0.3 })); tip.rotation.z = -Math.PI / 2; tip.position.x = 0.52;
+  const fl = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.14, 0.02), stdM('#f0f0f0')); fl.position.x = -0.4;
+  g.add(shaft, tip, fl); return g;
+}
+function makeFireball() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 1.2, 0.25) })));
+  const o = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36, 1), new THREE.MeshBasicMaterial({ color: '#ff5010', transparent: true, opacity: 0.45, depthWrite: false })); g.add(o);
+  return g;
+}
+function makeWebBall() {
+  const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color: '#f8f8ff' });
+  for (let i = 0; i < 4; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.05, 0.05), m); b.rotation.z = i * Math.PI / 4; g.add(b); }
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.24, 0.025, 4, 12), m); g.add(ring);
+  return g;
+}
+function makeTNT() {
+  const c = document.createElement('canvas'); c.width = c.height = 32; const x = c.getContext('2d');
+  x.fillStyle = '#c8281e'; x.fillRect(0, 0, 32, 32); x.fillStyle = '#e8e0d0'; x.fillRect(0, 11, 32, 10); x.fillStyle = '#202020'; x.font = 'bold 10px Arial'; x.textAlign = 'center'; x.fillText('TNT', 16, 20);
+  x.fillStyle = '#8a1810'; for (let i = 0; i < 32; i += 8) { x.fillRect(i, 0, 2, 11); x.fillRect(i, 21, 2, 11); }
+  const t = new THREE.CanvasTexture(c); t.magFilter = THREE.NearestFilter; t.colorSpace = THREE.SRGBColorSpace;
+  const m = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.62, 0.62), new THREE.MeshStandardMaterial({ map: t, roughness: 0.8 }));
+  const g = new THREE.Group(); g.add(m); return g;
+}
+function makeSpring() {
+  const g = new THREE.Group();
+  const coil = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.35, 10, 1, true), stdM('#c0c4cc', { metalness: 0.9, roughness: 0.25, side: THREE.DoubleSide })); coil.position.y = 0.2;
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.1, 12), stdM('#ff3030')); top.position.y = 0.42;
+  const base = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.08, 0.5), stdM('#ffd020')); base.position.y = 0.04;
+  g.add(coil, top, base); return g;
 }
 function makeTag(text, color) {
   const c = document.createElement('canvas'); c.width = 128; c.height = 80; const g = c.getContext('2d');
