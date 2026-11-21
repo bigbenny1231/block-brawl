@@ -8,6 +8,12 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#07060c">
 <title>Block Brawl</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Block Brawl">
+<meta name="theme-color" content="#120e28">
+
 <link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/style.css">
 <script type="importmap">{"imports":{"three":"./lib/three.module.min.js","three/addons/":"./lib/addons/"}}</script>
@@ -197,5 +203,6 @@
 <div id="rotate"><div class="phone"></div><div>ROTATE YOUR PHONE</div><small>Block Brawl plays in landscape</small></div>
 
 <script type="module" src="js/main.js"></script>
+<script>if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js");</script>
 </body>
 </html>
