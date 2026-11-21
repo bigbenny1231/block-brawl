@@ -317,6 +317,7 @@ export class Fighter {
       return;
     }
     const t = this.grabbed;
+    if (t.state !== 'grabbed') { this.grabbed = null; this.setState('idle'); return; }
     t.x = this.x + this.facing * (this.w * 0.5 + t.w * 0.5 + 0.1); t.y = this.y; t.facing = -this.facing;
     if (f % 20 === 10 && inp.attackP) { t.pct += 2; g.fx.hitSpark(t.x, t.y + t.h * 0.5, 2, this.c.fx[0]); g.sfx('hit', 0.1); }
     let dir = 0, a = 0;
@@ -508,7 +509,7 @@ export class Fighter {
     if (this.grounded) {
       const p = this.plat;
       if (p.dx) this.x += p.dx;
-      if (this.x < p.x0 - 0.1 || this.x > p.x1 + 0.1) { this.leaveGround(); }
+      if (p.off || this.x < p.x0 - 0.1 || this.x > p.x1 + 0.1) { this.leaveGround(); }
       else if (this.vy + this.kby > 0.5) { this.grounded = false; this.plat = null; }
       else { this.y = p.y; this.vy = 0; if (this.kby < 0) this.kby = 0; }
     }
@@ -516,7 +517,8 @@ export class Fighter {
       if (this.vy + this.kby <= 0) {
         for (const p of S.plats) {
           if (p.soft && (this.dropT > 0 || (this.fastFall && this.cpu === false && this.downHeld))) continue;
-          if (this.x >= p.x0 - 0.1 && this.x <= p.x1 + 0.1 && py >= p.y - 0.05 && this.y <= p.y) { this.land(p); break; }
+          if (p.off) continue;
+          if (this.x >= p.x0 - 0.1 && this.x <= p.x1 + 0.1 && py >= p.y - 0.05 - Math.max(0, p.dy || 0) && this.y <= p.y) { this.land(p); break; }
         }
       }
       if (!this.grounded && this.y < m.top && this.y + this.h > m.bottom && this.x + hw > m.x0 && this.x - hw < m.x1) {
@@ -587,7 +589,7 @@ export class Fighter {
     this.launched = spd > 15;
     this.setState('hitstun');
     this.upUsed = false; this.airDodged = false; this.rushUsed = false; this.blinkUsed = false; this.fastFall = false; this.anim.alpha = 1;
-    this.lastHitter = att; this.lastHitT = g.frame; this.hitFlash = 6;
+    if (att) { this.lastHitter = att; this.lastHitT = g.frame; } this.hitFlash = 6;
     if (spd > 13) this.facing = -Math.sign(kx) || this.facing;
     return { spd, dmg, kx, ky };
   }

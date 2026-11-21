@@ -12,6 +12,8 @@ import { Fighter, PCOLORS, DT } from './fighter.js';
 import { AI } from './ai.js';
 import { Input } from './input.js';
 import { Sound } from './audio.js';
+import { Items } from './items.js';
+import './stages2.js';
 
 const $ = s => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -186,6 +188,26 @@ function makePortraits() {
   renderer.setClearColor(0x000000, 1);
 }
 
+const stageThumbs = {};
+function makeStageThumbs() {
+  const W = 320, H = 160, pr = renderer.getPixelRatio();
+  const cam = new THREE.PerspectiveCamera(36, W / H, 0.1, 900);
+  cam.position.set(0, 5.2, 27); cam.lookAt(0, 2.2, 0);
+  renderer.setScissorTest(true); renderer.setViewport(0, 0, W, H); renderer.setScissor(0, 0, W, H);
+  for (const id of STAGE_ORDER) {
+    const st = game.getStage(id);
+    world.add(st.group); const pf = world.fog; world.fog = st.fog; world.environmentIntensity = st.envIntensity;
+    renderer.toneMappingExposure = st.exposure || 1;
+    st.update(1, 0.016);
+    renderer.clear(); renderer.render(world, cam);
+    const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+    cv.getContext('2d').drawImage(canvas, 0, canvas.height - H * pr, W * pr, H * pr, 0, 0, W, H);
+    stageThumbs[id] = cv.toDataURL('image/jpeg', 0.85);
+    world.remove(st.group); world.fog = pf;
+  }
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, innerWidth, innerHeight);
+}
+
 // ------------------------------------------------------------------ game
 const sound = new Sound();
 const input = new Input();
@@ -199,6 +221,7 @@ class Game {
     this.phase = 'idle'; this.phaseT = 0; this.attract = false; this.paused = false; this.timeScale = 1;
     this.camPos = new THREE.Vector3(0, 4, 30); this.camLook = new THREE.Vector3(0, 2, 0);
     this.tags = [];
+    this.items = new Items(this, world); this.haptics = true;
     const bt = BlockTextures;
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
@@ -220,8 +243,12 @@ class Game {
     for (const p of this.projectiles) this.release(p);
     for (const d of this.decor) this.release(d);
     this.projectiles = []; this.decor = []; this.tags = [];
+    this.items.clear(); this.items.configure(cfg.attract ? 'low' : (cfg.items || 'off'), cfg.itemList);
+    this.hazards = cfg.hazards !== false; this.timeLeft = cfg.time ? cfg.time * 60 : 0; this.webMesh.visible = false;
+    if (this.stage && this.stage.reset) this.stage.reset();
     if (this.stage) world.remove(this.stage.group);
     const st = this.stage = this.getStage(cfg.stage);
+    if (st.reset) st.reset();
     world.add(st.group); world.fog = st.fog; world.environmentIntensity = st.envIntensity;
     renderer.toneMappingExposure = st.exposure || 1;
     const key = st.key; key.castShadow = true;
@@ -232,7 +259,7 @@ class Game {
       if (p.boss) { f.boss = true; f.baseSize = f.size = 1.7; }
       const [sx, sy] = st.spawns[i];
       f.reset(sx, sy + 0.5, sx > 0 ? -1 : 1); f.anim.faceVis = f.facing;
-      f.stocks = this.attract ? 99 : (cfg.stocks || 3);
+      f.stocks = this.attract || cfg.time || cfg.training ? 99 : (cfg.stocks || 3); f.score = 0;
       world.add(f.rig.root);
       return f;
     });
@@ -275,11 +302,13 @@ class Game {
     let dx = -bx, dy = 3 - by; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
     this.fx.koBlast(bx, by, dx, dy, f.color);
     f.stocks--; f.falls++;
-    if (f.lastHitter && this.frame - f.lastHitT < 600) f.lastHitter.kos++;
+    if (f.lastHitter && this.frame - f.lastHitT < 600) { f.lastHitter.kos++; f.lastHitter.score++; } f.score--;
+    if (this.cfg.training || this.cfg.time) f.stocks = 99;
     f.state = 'dead'; f.stateT = 0; f.respawnT = 90; f.rig.root.visible = false; f.vx = f.vy = f.kbx = f.kby = 0;
     sound.sfx('ko'); this.shake(1.6); flash(0.5);
     if (!this.attract) {
       updateHud(true);
+      if (this.cfg.time || this.cfg.training) return;
       const alive = this.fighters.filter(o => o.stocks > 0);
       const human = this.fighters.find(o => !o.cpu);
       if (alive.length <= 1) this.gameSet(alive[0] || f);
@@ -323,6 +352,12 @@ class Game {
     if (opts) Object.assign(p, opts);
     p.owner = owner; p.type = type; p.mesh.visible = true; p.mesh.rotation.set(0, 0, 0); p.mesh.position.set(p.x, p.y, 0);
     this.projectiles.push(p);
+  }
+  hazardHit(t, hb, x, y, dir) {
+    if (t.state === 'dead' || t.invuln > 0 || (t.hazardCD || 0) > this.frame) return;
+    t.hazardCD = this.frame + 40;
+    const res = t.takeHit(null, { ...hb, weak: 0 }, dir, x, y);
+    if (res && res !== 'shield') this.onHitFx(null, res, x, y);
   }
   explode(x, y, owner, hb, r, hitOwner, small) {
     for (const t of this.fighters) {
@@ -391,7 +426,7 @@ class Game {
       let dead = p.life <= 0;
       if (p.bounce && p.vy < 0) {
         for (const pl of this.stage.plats) {
-          if (p.x > pl.x0 && p.x < pl.x1 && p.y - p.r <= pl.top && p.y - p.r - p.vy * DT >= pl.top - 0.05) { p.y = pl.top + p.r; p.vy = p.bounce; break; }
+          if (p.x > pl.x0 && p.x < pl.x1 && p.y - p.r <= pl.y && p.y - p.r - p.vy * DT >= pl.y - 0.05) { p.y = pl.y + p.r; p.vy = p.bounce; break; }
         }
       }
       for (const t of this.fighters) {
@@ -426,7 +461,16 @@ class Game {
       if (t === 70) { banner('2'); sound.sfx('count'); }
       if (t === 120) { banner('1'); sound.sfx('count'); }
       if (t === 170) { banner('GO!'); sound.sfx('go'); this.phase = 'fight'; this.phaseT = 0; sound.music('battle'); }
-    } else if (this.phase === 'gameset') {
+    } else if (this.phase === 'fight' && this.timeLeft > 0 && !this.attract) {
+      this.timeLeft--;
+      if (this.timeLeft === 0) {
+        const rank = [...this.fighters].sort((a, b) => b.score - a.score || a.pct - b.pct);
+        this.gameSet(rank[0]); banner('TIME!', true);
+      } else if (this.timeLeft <= 600 && this.timeLeft % 60 === 0) sound.sfx('tick');
+    }
+    if (this.stage.tick && (this.phase === 'fight' || this.attract)) this.stage.tick(this);
+    if (this.phase === 'fight' && this.hazards && this.stage.hazardStep) this.stage.hazardStep(this, this.t);
+    if (this.phase === 'gameset') {
       if (this.phaseT > 75) this.timeScale = lerp(this.timeScale, 1, 0.05);
       if (this.phaseT === 150) showResults();
     }
@@ -618,7 +662,7 @@ function startFight(cfg) {
   if (!navigator.userActivation || navigator.userActivation.hasBeenActive) sound.init();
   if (!cfg) {
     const others = CHAR_ORDER.filter(id => id !== sel.char).sort(() => Math.random() - 0.5);
-    cfg = { stage: sel.stage, stocks: 3, players: [{ char: sel.char, cpu: false }, ...others.slice(0, sel.rivals).map(id => ({ char: id, cpu: true, level: sel.level }))] };
+    cfg = { stage: sel.stage, stocks: 3, items: sel.items || 'med', hazards: sel.hazards !== false, players: [{ char: sel.char, cpu: false }, ...others.slice(0, sel.rivals).map(id => ({ char: id, cpu: true, level: sel.level }))] };
   }
   sound.sfx('select');
   mode = 'fight'; showScreen('hud');
@@ -727,10 +771,9 @@ async function boot() {
   buildComposer();
   setLoad(0.3, 'SUMMONING FIGHTERS…'); await nextFrame();
   makePortraits();
-  setLoad(0.55, 'RAISING THE NETHER…'); await nextFrame();
-  game.getStage('nether');
-  setLoad(0.75, 'CARVING THE PEAKS…'); await nextFrame();
-  game.getStage('overworld');
+  const msgs = { overworld: 'CARVING THE PEAKS…', nether: 'RAISING THE NETHER…', loop: 'LOOPING THE LOOP…', castle: 'STACKING ? BLOCKS…', rooftops: 'WIRING THE NEON…' };
+  for (let i = 0; i < STAGE_ORDER.length; i++) { const id = STAGE_ORDER[i]; setLoad(0.4 + 0.45 * i / STAGE_ORDER.length, msgs[id] || 'BUILDING…'); await nextFrame(); game.getStage(id); }
+  makeStageThumbs();
   buildSelect();
   setLoad(0.9, 'WARMING UP SHADERS…'); await nextFrame();
   // precompile
@@ -749,5 +792,5 @@ async function boot() {
   else if (start === 'fight') { goSelect(); startFight(); }
   else goTitle();
 }
-window.__bb = { get game() { return game; }, input, sound, startFight, goSelect, goTitle, showResults, sel, get mode() { return mode; }, get quality() { return quality; }, renderer };
+window.__bb = { stageThumbs, get game() { return game; }, input, sound, startFight, goSelect, goTitle, showResults, sel, get mode() { return mode; }, get quality() { return quality; }, renderer };
 boot().catch(e => { console.error(e); $('#loadtxt').textContent = 'ERROR: ' + e.message; });

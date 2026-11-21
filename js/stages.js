@@ -361,3 +361,4 @@ export const STAGES = { overworld: { name: 'OVERWORLD PEAKS', build: buildOverwo
 export const STAGE_ORDER = ['overworld', 'nether'];
 export function buildStage(scene, id) { return STAGES[id].build(scene); }
 export { T as BlockTextures, pix };
+export { Blocks, stdMat, lamMat, glowMat, skyDome, islandMainBody, speckle, mulberry, hash2, fbm };
