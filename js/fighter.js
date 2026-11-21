@@ -197,7 +197,7 @@ export class Fighter {
         if (this.stateT % 18 === 9) g.sfx('swing');
       }
     }
-    if (this.comboT > 0 && --this.comboT === 0) this.combo = 0;
+    if (this.comboT > 0 && --this.comboT === 0) { this.combo = 0; this.comboShow = 0; }
   }
   contactHit(hb, tag) {
     const g = this.game;
@@ -585,7 +585,7 @@ export class Fighter {
     if (hb.web) { this.hitstun = 48; this.webbed = 48; g.fx.burst(this.x, this.y + this.h * 0.5, 0.4, '#ffffff', 16, 4, 0.6, 0.3); }
     if (this.id === 'bolt' && dmg > 3) g.fx.burst(this.x, this.y + this.h * 0.5, 0.3, '#ffd23a', 14, 9, 0.9, 0.3, { grav: 1.2, drag: 1 });
     if (this.held) { g.dropHeld(this); }
-    if (att) { att.combo = (att.comboT > 0 ? att.combo : 0) + 1; att.comboT = 70; }
+    if (att) { att.combo = (this.state === 'hitstun' || this.state === 'grabbed') && att.comboT > 0 ? att.combo + 1 : 1; att.comboT = this.hitstun + 24; }
     this.launched = spd > 15;
     this.setState('hitstun');
     this.upUsed = false; this.airDodged = false; this.rushUsed = false; this.blinkUsed = false; this.fastFall = false; this.anim.alpha = 1;
@@ -605,7 +605,7 @@ export class Fighter {
   // ------------------------------------------------------------ procedural animation
   animate(dt, time) {
     const r = this.rig, A = this.anim, st = this.state, c = this.c;
-    r.root.visible = st !== 'dead';
+    r.root.visible = st !== 'dead' && !(this.entrance > 0);
     if (st === 'dead') return;
     const P = { ...N0 };
     let rate = 16;

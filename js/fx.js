@@ -124,7 +124,28 @@ export class FX {
     this.ring(x, y, 0.2, r * 1.6, 0.35, '#ffa040');
     for (let i = 0; i < 3; i++) this.dust(x + (Math.random() - 0.5) * r, y - 0.2 + Math.random() * r * 0.5, Math.floor(6 * k), '#555050', 1.6 * k);
   }
-  koBlast(x, y, dirx, diry, color) {
+  koBlast(x, y, dirx, diry, color, style = 'classic') {
+    if (style === 'fireworks') {
+      for (const c of ['#ff4a6a', '#ffd040', '#40c0ff', '#7dff9a', '#c070ff']) this.burst(x + dirx * 3 + (Math.random() - 0.5) * 3, y + diry * 3 + (Math.random() - 0.5) * 3, 0, c, 40, 14, 1.4, 0.4, { grav: 1.2, drag: 1.2, bright: 2.4 });
+      this.ring(x, y, 0, 5, 0.5, '#ffffff');
+    } else if (style === 'lightning') {
+      const b = this.beams.find(b => !b.active) || this.beams[0];
+      b.active = true; b.t = 0; b.d = 0.7; b.m.visible = true; b.m.position.set(x, y, 0); b.m.rotation.set(0, 0, Math.atan2(diry, dirx) + Math.PI / 2); b.m.material.color.set('#80c8ff').multiplyScalar(3.5);
+      this.burst(x, y, 0, '#a0e0ff', 120, 30, 0.6, 0.4, { drag: 3, bright: 2.6, dir: [dirx, diry] });
+      this.flash(x, y, 0.5, 9, 0.25, '#c0e8ff');
+    } else if (style === 'confetti') {
+      for (let i = 0; i < 140; i++) { const c = new THREE.Color().setHSL(Math.random(), 1, 0.6); const a = Math.atan2(diry, dirx) + (Math.random() - 0.5) * 1.6, sp = 6 + Math.random() * 16; this.spawn(x, y, (Math.random() - 0.5), Math.cos(a) * sp, Math.sin(a) * sp, (Math.random() - 0.5) * 4, c.r * 1.6, c.g * 1.6, c.b * 1.6, 1.6 + Math.random(), 0.25 + Math.random() * 0.2, 0.6, 1.4, 0); }
+      this.ring(x, y, 0, 4, 0.5, color);
+    } else if (style === 'voidburst') {
+      this.burst(x, y, 0, '#8a3aff', 90, 3, 1.0, 0.7, { drag: 0.5, bright: 2.2, grow: 1.2 });
+      this.burst(x, y, 0, '#1a0030', 50, 18, 0.8, 0.5, { drag: 2, bright: 1 });
+      this.ring(x, y, 0, 7, 0.7, '#b060ff'); this.ring(x, y, 0, 4, 0.45, '#ffffff');
+      this.flash(x, y, 0.5, 6, 0.3, '#a040ff');
+    } else if (style === 'pixels') {
+      for (let i = 0; i < 90; i++) { const c = new THREE.Color(color); const a = Math.atan2(diry, dirx) + (Math.random() - 0.5) * 2.2, sp = 4 + Math.random() * 18; this.spawn(x, y, 0, Math.cos(a) * sp, Math.sin(a) * sp, 0, c.r * 2, c.g * 2, c.b * 2, 1.2, 0.55, 2, 1.2, 0); }
+      this.ring(x, y, 0, 5, 0.5, color);
+    }
+    if (style !== 'classic') return;
     const b = this.beams.find(b => !b.active) || this.beams[0];
     b.active = true; b.t = 0; b.d = 1.3; b.m.visible = true;
     b.m.position.set(x, y, 0);

@@ -9,7 +9,7 @@ export class Sound {
     const comp = ctx.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 4;
     this.master.connect(comp); comp.connect(ctx.destination);
     this.sfxG = ctx.createGain(); this.sfxG.gain.value = 0.9; this.sfxG.connect(this.master);
-    this.musG = ctx.createGain(); this.musG.gain.value = 0.32; this.musG.connect(this.master);
+    this.musG = ctx.createGain(); this.musG.gain.value = this.musicOn === false ? 0 : 0.32; this.musG.connect(this.master);
     // reverb send
     this.verb = ctx.createConvolver();
     const len = ctx.sampleRate * 1.8, ir = ctx.createBuffer(2, len, ctx.sampleRate);
@@ -19,6 +19,7 @@ export class Sound {
     this.noiseBuf = nb;
     if (this.musicMode) { const m = this.musicMode; this.musicMode = null; this.music(m); }
   }
+  setMusic(on) { this.musicOn = on; if (this.musG) this.musG.gain.value = on ? 0.32 : 0; }
   setMuted(m) { this.muted = m; if (this.master) this.master.gain.value = m ? 0 : 0.8; }
   get t() { return this.ctx.currentTime; }
   tone(type, f0, f1, dur, vol, when = 0, dest = null, verb = 0) {

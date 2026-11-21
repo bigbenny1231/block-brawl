@@ -170,6 +170,7 @@ export class Items {
     g.fx.burst(it.x, it.y + 0.5, 0.3, def.color, 26, 7, 0.5, 0.35);
     g.fx.ring(it.x, it.y + 0.5, 0.2, 2.2, 0.35, def.color);
     const ai = g.ais[g.fighters.indexOf(f)]; if (ai) ai.itemTarget = null;
+    f.itemsTaken = (f.itemsTaken || 0) + 1;
     if (f.onItem) f.onItem(it.type);
     g.stats && g.stats.item(f, it.type);
     switch (it.type) {

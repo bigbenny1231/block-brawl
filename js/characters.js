@@ -509,6 +509,7 @@ export const HATS = {
   none: { name: 'NONE' }, crown: { name: 'ROYAL CROWN' }, tophat: { name: 'TOP HAT' }, party: { name: 'PARTY HAT' }, halo: { name: 'HALO' },
   horns: { name: 'VIKING HORNS' }, shades: { name: 'COOL SHADES' }, phones: { name: 'HEADPHONES' }, propeller: { name: 'PROPELLER CAP' },
 };
+const HAT_FIT = { bolt: { y: 0.6, z: -0.05 }, gogo: { y: 0.55, k: 1.3, z: 0 }, malgore: { k: 1.6 }, pipper: { y: 0.66 }, bristle: { k: 1.3 } };
 function buildHat(id, mats) {
   const p = new P();
   switch (id) {
@@ -537,15 +538,15 @@ export function buildChar(id, cos = {}) {
   if (cos.hat && cos.hat !== 'none') {
     const hat = buildHat(cos.hat, mats);
     if (hat) {
-      rig.root.updateMatrixWorld(true);
-      const box = new THREE.Box3().setFromObject(rig.head);
-      const hp = new THREE.Vector3(); rig.head.getWorldPosition(hp);
-      const sizeX = box.max.x - box.min.x;
-      hat.position.y = box.max.y - hp.y - 0.02;
-      const k = Math.max(0.7, Math.min(1.8, sizeX / 0.55));
-      hat.scale.setScalar(k);
-      if (cos.hat === 'shades' || cos.hat === 'phones') hat.position.y = (box.max.y - hp.y) * 0.62;
-      if (cos.hat === 'shades') hat.position.z = (box.max.z - box.min.z) * 0.5 - 0.01;
+      const head = rig.head; head.updateMatrixWorld(true);
+      const inv = new THREE.Matrix4().copy(head.matrixWorld).invert(), box = new THREE.Box3(), m4 = new THREE.Matrix4();
+      head.traverse(o => { if (o.isMesh) { o.geometry.computeBoundingBox(); box.union(o.geometry.boundingBox.clone().applyMatrix4(m4.multiplyMatrices(inv, o.matrixWorld))); } });
+      const fit = HAT_FIT[id] || {};
+      const top = fit.y ?? box.max.y, cz = fit.z ?? (box.min.z + box.max.z) / 2;
+      const k = fit.k ?? Math.max(0.75, Math.min(1.6, (box.max.x - box.min.x) / 0.62));
+      hat.scale.setScalar(k); hat.position.set(0, top - 0.02, cz);
+      if (cos.hat === 'shades' || cos.hat === 'phones') hat.position.y = box.min.y + (top - box.min.y) * 0.62 + 0.16 * k;
+      if (cos.hat === 'shades') hat.position.z = (fit.front ?? box.max.z) - 0.01;
       rig.head.add(hat); rig.hat = hat;
     }
   }

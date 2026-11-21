@@ -2,11 +2,11 @@
 export class Input {
   constructor() {
     this.keys = new Set(); this.edge = new Set();
-    this.btnHeld = { attack: 0, special: 0, jump: 0, shield: 0 }; this.btnEdge = new Set();
+    this.btnHeld = { attack: 0, special: 0, jump: 0, shield: 0, grab: 0 }; this.haptics = true; this.btnEdge = new Set();
     this.joy = { active: false, id: null, ox: 0, oy: 0, x: 0, y: 0 };
     this.prevY = 0; this.prevX = 0; this.yHist = [];
     this.override = null; this.usingTouch = false;
-    const map = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', ' ': 'jump', j: 'attack', z: 'attack', k: 'special', x: 'special', l: 'shield', shift: 'shield', c: 'shield' };
+    const map = { arrowleft: 'left', a: 'left', arrowright: 'right', d: 'right', arrowup: 'up', w: 'up', arrowdown: 'down', s: 'down', ' ': 'jump', j: 'attack', z: 'attack', g: 'grab', v: 'grab', k: 'special', x: 'special', l: 'shield', shift: 'shield', c: 'shield' };
     this.map = map;
     addEventListener('keydown', e => {
       const k = map[e.key.toLowerCase()]; if (!k) return;
@@ -45,7 +45,7 @@ export class Input {
     zone.addEventListener('pointermove', move); zone.addEventListener('pointerup', up); zone.addEventListener('pointercancel', up); zone.addEventListener('lostpointercapture', up);
     root.querySelectorAll('[data-btn]').forEach(el => {
       const b = el.dataset.btn; const ids = new Set();
-      el.addEventListener('pointerdown', e => { e.preventDefault(); this.usingTouch = true; ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) {} if (!this.btnHeld[b]) this.btnEdge.add(b); this.btnHeld[b] = ids.size; el.classList.add('down'); if (navigator.vibrate) try { navigator.vibrate(8); } catch (_) {} });
+      el.addEventListener('pointerdown', e => { e.preventDefault(); this.usingTouch = true; ids.add(e.pointerId); try { el.setPointerCapture(e.pointerId); } catch (_) {} if (!this.btnHeld[b]) this.btnEdge.add(b); this.btnHeld[b] = ids.size; el.classList.add('down'); if (this.haptics && navigator.vibrate) try { navigator.vibrate(8); } catch (_) {} });
       const rel = e => { if (!ids.has(e.pointerId)) return; ids.delete(e.pointerId); this.btnHeld[b] = ids.size; if (!ids.size) el.classList.remove('down'); };
       el.addEventListener('pointerup', rel); el.addEventListener('pointercancel', rel); el.addEventListener('lostpointercapture', rel);
       el.addEventListener('contextmenu', e => e.preventDefault());
@@ -68,11 +68,11 @@ export class Input {
     this.prevY = y; this.prevX = x;
     const out = {
       x, y,
-      attackP: E.has('attack') || BE.has('attack'),
+      attackP: E.has('attack') || BE.has('attack') || BE.has('grab') || E.has('grab'),
       specialP: E.has('special') || BE.has('special'),
       jumpP: E.has('jump') || BE.has('jump') || keyUpTap || (this.joy.active && yTap),
       jumpH: K.has('jump') || B.jump > 0 || K.has('up') || (this.joy.active && y > 0.6),
-      shieldH: K.has('shield') || B.shield > 0,
+      shieldH: K.has('shield') || B.shield > 0 || BE.has('grab') || E.has('grab'),
       shieldP: E.has('shield') || BE.has('shield'),
       xTap, downTap,
     };

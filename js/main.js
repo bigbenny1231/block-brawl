@@ -5,7 +5,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
-import { CHARS, CHAR_ORDER, BASE_YAW } from './characters.js';
+import { CHARS, CHAR_ORDER, BASE_YAW, PALETTES, HATS } from './characters.js';
 import { STAGES, STAGE_ORDER, buildStage, BlockTextures } from './stages.js';
 import { FX } from './fx.js';
 import { Fighter, PCOLORS, DT } from './fighter.js';
@@ -14,6 +14,7 @@ import { Input } from './input.js';
 import { Sound } from './audio.js';
 import { Items } from './items.js';
 import './stages2.js';
+import { Profile, KO_FX, POSES, TITLES, LEVEL_REWARDS, SHOP, rewardName, xpForLevel, fxpForLevel, titleName } from './profile.js';
 
 const $ = s => document.querySelector(s);
 const params = new URLSearchParams(location.search);
@@ -37,7 +38,7 @@ const QSET = {
   high: { pr: 2, shadow: 2048, bloom: true, msaa: 4 },
 };
 let quality = QLIST.includes(params.get('q')) ? params.get('q') : (isMobile ? 'medium' : 'high');
-const autoQ = !params.has('q');
+let autoQ = !params.has('q');
 
 const world = new THREE.Scene();
 const show = new THREE.Scene();
@@ -117,10 +118,10 @@ function buildShowScene() {
   show.fog = new THREE.Fog('#0a0612', 12, 40);
 }
 let showPuppet = null, showMode = 'select';
-function setShowPuppet(charId, victory) {
+function setShowPuppet(charId, victory, cos = {}) {
   if (showPuppet) { show.remove(showPuppet.rig.root); disposeRig(showPuppet.rig); }
   const stub = { hitstopT: 0, fighters: [], sfx() {} };
-  const p = new Fighter(stub, 0, charId, false, 'normal');
+  const p = new Fighter(stub, 0, charId, false, 'normal', cos);
   p.state = 'idle'; p.grounded = true; p.x = 0; p.y = 0.46; p.invuln = 0; p.victory = !!victory; p.facing = 1;
   p.anim.squash = 0.6;
   p.rig.root.traverse(o => { if (o.isMesh) o.castShadow = true; });
@@ -145,6 +146,7 @@ function layoutShowCam() {
   const w = innerWidth, hh = innerHeight;
   if (showMode === 'select' && !portrait) showCam.setViewOffset(w, hh, w * 0.12, hh * 0.04, w, hh);
   else if (showMode === 'results' && !portrait) showCam.setViewOffset(w, hh, -w * 0.02, 0, w, hh);
+  else if (showMode === 'locker' && !portrait) showCam.setViewOffset(w, hh, w * 0.1, hh * 0.02, w, hh);
   else showCam.clearViewOffset();
   showCam.updateProjectionMatrix();
 }
@@ -259,11 +261,13 @@ class Game {
       if (p.boss) { f.boss = true; f.baseSize = f.size = 1.7; }
       const [sx, sy] = st.spawns[i];
       f.reset(sx, sy + 0.5, sx > 0 ? -1 : 1); f.anim.faceVis = f.facing;
-      f.stocks = this.attract || cfg.time || cfg.training ? 99 : (cfg.stocks || 3); f.score = 0;
+      f.stocks = this.attract || cfg.time || cfg.training ? 99 : (p.cpu && cfg.cpuStocks ? cfg.cpuStocks : (cfg.stocks || 3)); f.maxStocks = f.stocks; f.score = 0; f.itemsTaken = 0; f.maxCombo = 0;
+      if (!this.attract) { f.entrance = 16 + i * 12; f.rig.root.visible = false; }
       world.add(f.rig.root);
       return f;
     });
-    this.ais = this.fighters.map(f => (f.cpu ? new AI(f, f.level) : null));
+    this.ais = this.fighters.map(f => (f.cpu ? new AI(f, f.level) : null)); this.dummyMode = 'stand';
+    document.querySelectorAll('#tpDummy button').forEach(x => x.classList.toggle('on', x.dataset.v === 'stand'));
     if (!this.attract) for (const f of this.fighters) { const t = makeTag(f.cpu ? 'CPU' : 'P1', f.color); world.add(t); this.tags.push(t); }
     this.fx.clear(); this.frame = 0; this.t = 0; this.hitstopT = 0; this.shakeAmt = 0; this.timeScale = 1; this.paused = false;
     this.phase = this.attract ? 'fight' : 'countdown'; this.phaseT = 0;
@@ -287,6 +291,9 @@ class Game {
     return any;
   }
   onHitFx(att, res, x, y) {
+    if (att) { att.maxCombo = Math.max(att.maxCombo || 0, att.combo || 0); att.comboShow = att.combo; clearTimeout(att._ch); }
+    if (!this.attract && res.dmg >= 9 && PD().settings.dmgNums) this.items.pop(x, y + 0.6, Math.round(res.dmg) + '%', res.dmg >= 15 ? '#ff5a3a' : '#ffffff');
+    if (att && !att.cpu && res.spd > 12) haptic(Math.min(40, 10 + res.spd));
     const hs = Math.min(17, Math.round(3 + res.dmg * 0.45 + (res.spd > 20 ? 5 : 0)));
     this.hitstop(hs);
     const n = res.spd || 1;
@@ -300,7 +307,9 @@ class Game {
     const b = this.stage.blast;
     const bx = clamp(f.x, -b.x, b.x), by = clamp(f.y, b.bottom, b.top);
     let dx = -bx, dy = 3 - by; const m = Math.hypot(dx, dy) || 1; dx /= m; dy /= m;
-    this.fx.koBlast(bx, by, dx, dy, f.color);
+    const killer = f.lastHitter && this.frame - f.lastHitT < 600 ? f.lastHitter : null;
+    this.fx.koBlast(bx, by, dx, dy, f.color, killer && killer.cos && killer.cos.ko || 'classic');
+    if (killer && !killer.cpu) haptic(50);
     f.stocks--; f.falls++;
     if (f.lastHitter && this.frame - f.lastHitT < 600) { f.lastHitter.kos++; f.lastHitter.score++; } f.score--;
     if (this.cfg.training || this.cfg.time) f.stocks = 99;
@@ -352,6 +361,11 @@ class Game {
     if (opts) Object.assign(p, opts);
     p.owner = owner; p.type = type; p.mesh.visible = true; p.mesh.rotation.set(0, 0, 0); p.mesh.position.set(p.x, p.y, 0);
     this.projectiles.push(p);
+  }
+  entranceFx(f) {
+    f.rig.root.visible = true; f.anim.squash = 1.6; f.entPop = 1;
+    this.fx.burst(f.x, f.y + 1, 0.2, f.color, 50, 9, 0.7, 0.35, { up: 4 }); this.fx.ring(f.x, f.y + 0.1, 0, 3.4, 0.45, f.color, true);
+    this.fx.flash(f.x, f.y + 1, 0.4, 3, 0.25, '#ffffff'); this.fx.dust(f.x, f.y, 10); sound.sfx('respawn'); this.shake(0.3);
   }
   hazardHit(t, hb, x, y, dir) {
     if (t.state === 'dead' || t.invuln > 0 || (t.hazardCD || 0) > this.frame) return;
@@ -410,7 +424,8 @@ class Game {
     const pin = input.poll();
     this.fighters.forEach((f, i) => {
       let inp = EMPTY;
-      if (live) inp = f.cpu ? this.ais[i].think(this) : pin;
+      if (live) inp = f.cpu ? (this.cfg.training && this.dummyMode !== 'cpu' ? (this.dummyMode === 'jump' && this.frame % 70 === 0 ? { ...EMPTY, jumpP: true, jumpH: true } : EMPTY) : this.ais[i].think(this)) : pin;
+      if (f.entrance > 0) { inp = EMPTY; if (--f.entrance === 0) this.entranceFx(f); }
       if (this.phase === 'gameset' && f === this.winner) inp = EMPTY;
       f.update(inp);
     });
@@ -577,19 +592,14 @@ function flash(a) { flashA = Math.max(flashA, a); }
 function banner(text, hold) {
   const b = $('#banner'); b.textContent = text; b.className = ''; void b.offsetWidth; b.className = hold ? 'hold' : 'go';
 }
-function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); }
-function showScreen(id) {
-  for (const s of ['loading', 'title', 'select', 'hud', 'results', 'pause']) $('#' + s).classList.toggle('show', s === id || (id === 'pause' && s === 'hud'));
-  $('#touch').classList.toggle('show', (id === 'hud') && (isTouch || params.has('touch')));
-  document.body.classList.toggle('touchui', isTouch || params.has('touch'));
-}
+function toast(msg) { const t = $('#toast'); t.classList.remove('menu'); t.textContent = msg; t.classList.add('on'); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('on'), 2600); }
 const pctColor = p => { const k = clamp(p / 160, 0, 1); const c = new THREE.Color().setHSL(lerp(0.16, 0.0, k), lerp(0.0, 1, Math.min(1, p / 40)), lerp(1.0, 0.45, k)); return '#' + c.getHexString(); };
 let hudEls = [];
 function buildHud(fs) {
   const box = $('#cards'); box.innerHTML = ''; hudEls = [];
   fs.forEach(f => {
     const d = document.createElement('div'); d.className = 'pc'; d.style.setProperty('--pc', f.color);
-    d.innerHTML = `<div class="pt"><img src="${portraits[f.id]}"></div><div class="tag">${f.cpu ? 'CPU' : 'P1'}</div><div class="st"></div><div class="rt"><div class="pct">0<small>%</small></div><div class="nm">${CHARS[f.id].name}</div></div>`;
+    d.innerHTML = `<div class="pt"><img src="${portraits[f.id]}"></div><div class="tag">${f.cpu ? (f.boss ? 'BOSS' : 'CPU') : 'P1'}</div><div class="st"></div><div class="rt"><div class="pct">0<small>%</small></div><div class="nm">${CHARS[f.id].name}</div></div>`;
     box.appendChild(d);
     hudEls.push({ d, pct: d.querySelector('.pct'), st: d.querySelector('.st'), last: -1, lastS: -1 });
   });
@@ -597,6 +607,9 @@ function buildHud(fs) {
 }
 function updateHud(force) {
   if (!game || game.attract) return;
+  if (game.cfg.time) { const tl = Math.ceil(game.timeLeft / 60), el = $('#timer'); const txt = Math.floor(tl / 60) + ':' + String(tl % 60).padStart(2, '0'); if (el.textContent !== txt) { el.textContent = txt; el.classList.toggle('low', tl <= 10); } }
+  const h = game.fighters.find(f => !f.cpu);
+  if (h) { const c = h.comboShow || 0, el = $('#combo'); if (c !== el._c) { el._c = c; el.classList.toggle('on', c >= 2); if (c >= 2) el.innerHTML = `<b>${c}</b><span>HIT COMBO</span>`; } }
   game.fighters.forEach((f, i) => {
     const e = hudEls[i]; if (!e) return;
     const p = Math.floor(f.pct);
@@ -604,84 +617,434 @@ function updateHud(force) {
       if (p > e.last && e.last >= 0) { e.pct.classList.remove('pop'); void e.pct.offsetWidth; e.pct.classList.add('pop'); }
       e.last = p; e.pct.innerHTML = (f.state === 'dead' && f.stocks <= 0 ? '—' : p) + '<small>%</small>'; e.pct.style.color = pctColor(p);
     }
-    if (f.stocks !== e.lastS || force) {
-      e.lastS = f.stocks; e.st.innerHTML = Array.from({ length: game.cfg.stocks || 3 }, (_, k) => `<i class="${k < f.stocks ? '' : 'gone'}"></i>`).join('');
+    if (f.stocks !== e.lastS || force || (game.cfg.time && f.score !== e.lastSc)) {
+      e.lastS = f.stocks; e.lastSc = f.score;
+      if (game.cfg.time || game.cfg.training) e.st.innerHTML = game.cfg.training ? '' : `<b style="font-size:11px;font-style:italic">${f.score > 0 ? '+' : ''}${f.score}</b>`;
+      else e.st.innerHTML = Array.from({ length: f.maxStocks || game.cfg.stocks || 3 }, (_, k) => `<i class="${k < f.stocks ? '' : 'gone'}"></i>`).join('');
       e.d.classList.toggle('out', f.stocks <= 0);
     }
   });
 }
 
-// ------------------------------------------------------------------ select screen
-const sel = { char: 'blockjack', rivals: Math.min(2, 3), level: 'normal', stage: 'overworld' };
-try { Object.assign(sel, JSON.parse(localStorage.getItem('bb.sel') || '{}')); } catch (_) {}
+// ------------------------------------------------------------------ profile + settings
+const profile = new Profile();
+const PD = () => profile.d;
+const sel = { char: PD().last.char || 'blockjack', stage: PD().last.stage || 'overworld', mode: 'vs' };
 if (STAGES[params.get('stage')]) sel.stage = params.get('stage');
 if (CHARS[params.get('char')]) sel.char = params.get('char');
-if (+params.get('rivals')) sel.rivals = clamp(+params.get('rivals'), 1, 3);
+if (!profile.isUnlocked(sel.char)) sel.char = 'blockjack';
+if (+params.get('rivals')) PD().rules.nRivals = clamp(+params.get('rivals'), 1, 3);
+const LEVELS = ['easy', 'normal', 'hard'];
+function applySettings() {
+  const s = PD().settings;
+  sound.setMuted(!s.sound); sound.setMusic(s.music);
+  input.haptics = s.haptics; game && (game.haptics = s.haptics);
+  if (!params.has('q')) {
+    const want = s.quality === 'auto' ? (isMobile ? 'medium' : 'high') : s.quality;
+    autoQ = s.quality === 'auto';
+    if (want !== quality) { quality = want; buildComposer(); }
+  }
+  layoutTouch();
+}
+function layoutTouch() {
+  const s = PD().settings, k = s.tsize || 1, L = !!s.lefty, op = s.topac ?? 0.85;
+  const H = innerHeight, small = H < 340 ? 0.86 : 1, K = k * small;
+  const side = L ? 'left' : 'right', other = L ? 'right' : 'left';
+  const inset = 'max(14px, env(safe-area-inset-' + side + '))';
+  const place = (id, size, off, bottom) => { const el = $(id); el.style.width = el.style.height = (size * K) + 'px'; el.style[side] = `calc(${inset} + ${off * K}px)`; el.style[other] = 'auto'; el.style.bottom = (bottom * K) + 'px'; el.style.opacity = op; };
+  place('#bA', 84, 96, 22); place('#bB', 70, 118, 122); place('#bJ', 76, 10, 70); place('#bS', 58, 22, 166); place('#bG', 50, 196, 30);
+  const z = $('#joyzone'); z.style[other] = '0'; z.style[side] = 'auto';
+  const jb = $('#joybase'); jb.style.transform = `scale(${K})`; jb.style.opacity = '';
+  $('#touch').style.setProperty('--topac', op);
+}
+
+// ------------------------------------------------------------------ UI helpers (press feedback, haptics, transitions)
+function haptic(ms = 10) { if (PD().settings.haptics && navigator.vibrate) try { navigator.vibrate(ms); } catch (_) {} }
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest('button, .tile, .card, .stg, .opt-c, .lk-f, .sp');
+  if (!b) return;
+  b.classList.add('pressed'); haptic(8);
+  const up = () => { b.classList.remove('pressed'); removeEventListener('pointerup', up); removeEventListener('pointercancel', up); };
+  addEventListener('pointerup', up); addEventListener('pointercancel', up);
+}, true);
+const SCREENS = ['loading', 'title', 'menu', 'select', 'setup', 'ladder', 'locker', 'shop', 'quests', 'stats', 'settings', 'hud', 'results', 'pause'];
+let clickGuard = 0, swallowClick = false;
+document.addEventListener('pointerdown', () => { swallowClick = false; }, true);
+document.addEventListener('click', e => { if ((swallowClick || performance.now() < clickGuard) && !e.target.closest('#touch')) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+function showScreen(id) {
+  clickGuard = performance.now() + 380; swallowClick = true;
+  for (const s of SCREENS) { const el = $('#' + s); if (el) el.classList.toggle('show', s === id || (id === 'pause' && s === 'hud')); }
+  $('#touch').classList.toggle('show', (id === 'hud') && (isTouch || params.has('touch')));
+  document.body.classList.toggle('touchui', isTouch || params.has('touch'));
+  refreshCoins();
+}
+function refreshCoins(bump) { document.querySelectorAll('.coinv').forEach(e => { e.textContent = PD().coins.toLocaleString(); if (bump) { e.parentElement.classList.remove('bump'); void e.parentElement.offsetWidth; e.parentElement.classList.add('bump'); } }); }
+document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { sound.sfx('back'); goBack(); }));
+const lockSvg = '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2.2 0h5.6V7a2.8 2.8 0 0 0-5.6 0z"/></svg>';
+const SWATCH = { default: 'linear-gradient(135deg,#ff6a3a,#3a8aff)', shadow: '#2a2830', gold: 'linear-gradient(135deg,#fff0a0,#d89a10)', frost: 'linear-gradient(135deg,#e0f4ff,#6ab0e0)', crimson: '#c01a2a', neon: 'linear-gradient(135deg,#3af0ff,#ff3ac8)', greenbro: '#2ab040', darkhog: 'linear-gradient(135deg,#1a1a24,#c01a1a)', symbiote: '#0c0c14', charged: 'linear-gradient(135deg,#40e0ff,#c0fff0)', wither: '#1a1a1a', netherite: '#3a3240' };
+const HAT_IC = { none: '∅', crown: '♛', tophat: '🎩', party: '▲', halo: '◯', horns: 'ᗑ', shades: '▬▬', phones: '∩', propeller: '✢' };
+const KO_IC = { classic: '➤', fireworks: '✺', lightning: 'ϟ', confetti: '❖', voidburst: '◉', pixels: '▦' };
+const POSE_IC = { default: '★', cheer: '\\o/', dance: '♪', flex: 'ᕦᕤ', wave: 'o/', spin: '↻' };
+
+// ------------------------------------------------------------------ main menu
+function refreshMenu() {
+  const d = PD();
+  $('#plAv').src = portraits[sel.char] || portraits.blockjack;
+  $('#plLv').textContent = 'LV ' + d.lvl; $('#plTitle').textContent = titleName(d.title);
+  $('#plXp').style.width = (100 * d.xp / xpForLevel(d.lvl)) + '%';
+  $('#plXpTxt').textContent = `${d.xp} / ${xpForLevel(d.lvl)} XP`;
+  const qn = d.daily.quests.filter(q => q.done && !q.claimed).length;
+  $('#qBadge').textContent = qn; $('#qBadge').classList.toggle('on', qn > 0);
+  const art = (sel, ids) => { const el = document.querySelector(sel + ' .t-art'); el.innerHTML = ids.map(i => `<img src="${portraits[i]}" alt="">`).join(''); };
+  art('.t-vs', [sel.char, 'malgore']); art('.t-classic', ['ironclad']); art('.t-train', ['bolt']);
+  refreshCoins();
+}
+document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', () => {
+  sound.sfx('select'); const g = b.dataset.go;
+  if (g === 'vs' || g === 'classic' || g === 'training') { sel.mode = g; goSelect(); }
+  else if (g === 'locker') goLocker(); else if (g === 'shop') goShop(); else if (g === 'quests') goQuests(); else if (g === 'stats') goStats();
+}));
+$('#mSettings').onclick = () => { sound.sfx('select'); goSettings(); };
+
+// ------------------------------------------------------------------ fighter select
 function buildSelect() {
   const r = $('#roster'); r.innerHTML = '';
-  CHAR_ORDER.forEach(id => {
+  CHAR_ORDER.forEach((id, i) => {
     const c = CHARS[id];
-    const d = document.createElement('button'); d.className = 'card'; d.dataset.id = id; d.style.setProperty('--cc', c.color);
-    d.innerHTML = `<img src="${portraits[id]}" alt=""><div class="nm">${c.name}</div>`;
-    d.addEventListener('click', () => { if (sel.char !== id) { sel.char = id; sound.sfx('select'); refreshSelect(true); } });
+    const d = document.createElement('button'); d.className = 'card'; d.dataset.id = id; d.style.setProperty('--cc', c.color); d.style.animationDelay = (i * 0.025) + 's';
     r.appendChild(d);
+    d.addEventListener('click', () => {
+      if (!profile.isUnlocked(id)) { sound.sfx('back'); toastSel(CHARS[id].name + ' · ' + profile.unlockHint(id) + ' OR BUY IN SHOP'); return; }
+      if (sel.char !== id) { sel.char = id; sound.sfx('select'); refreshSelect(true); }
+    });
   });
-  const seg = (el, key) => el.querySelectorAll('button').forEach(b => b.addEventListener('click', () => { sel[key] = isNaN(+b.dataset.v) ? b.dataset.v : +b.dataset.v; sound.sfx('move'); refreshSelect(); }));
-  seg($('#optRivals'), 'rivals'); seg($('#optLevel'), 'level');
-  $('#stPrev').onclick = () => { cycleStage(-1); }; $('#stNext').onclick = () => { cycleStage(1); };
-  $('#fightBtn').onclick = () => startFight();
-  $('#selBack').onclick = () => { sound.sfx('back'); goTitle(); };
+  $('#selNext').onclick = () => { sound.sfx('select'); if (sel.mode === 'classic') startClassic(); else goSetup(); };
+  $('#selLocker').onclick = () => { sound.sfx('select'); lockerChar = sel.char; goLocker(true); };
 }
-function cycleStage(d) { const i = STAGE_ORDER.indexOf(sel.stage); sel.stage = STAGE_ORDER[(i + d + STAGE_ORDER.length) % STAGE_ORDER.length]; sound.sfx('move'); refreshSelect(); }
+function toastSel(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on', 'menu'); t.style.zIndex = 50; clearTimeout(toastSel.h); toastSel.h = setTimeout(() => t.classList.remove('on'), 2400); document.body.appendChild(t); }
 function refreshSelect(changed) {
   const c = CHARS[sel.char];
-  document.querySelectorAll('.card').forEach(d => d.classList.toggle('on', d.dataset.id === sel.char));
-  document.querySelectorAll('#optRivals button').forEach(b => b.classList.toggle('on', +b.dataset.v === sel.rivals));
-  document.querySelectorAll('#optLevel button').forEach(b => b.classList.toggle('on', b.dataset.v === sel.level));
-  $('#stName').textContent = STAGES[sel.stage].name;
+  document.querySelectorAll('.card').forEach(d => {
+    const id = d.dataset.id, un = profile.isUnlocked(id), f = profile.fighter(id);
+    d.classList.toggle('on', id === sel.char); d.classList.toggle('locked', !un);
+    d.innerHTML = `<img src="${portraits[id]}" alt="">${un ? `<div class="lvb">LV${f.lvl}</div>` : `<div class="lock">${lockSvg}${profile.unlockHint(id).replace('REACH ', '')}</div>`}<div class="nm">${un ? CHARS[id].name : '???'}</div>`;
+  });
+  $('#selMode').textContent = { vs: 'SMASH', classic: 'CLASSIC LADDER', training: 'TRAINING' }[sel.mode];
+  $('#selNext span').textContent = sel.mode === 'classic' ? 'START' : 'NEXT';
   $('#selInfo').style.setProperty('--cc', c.color);
+  const f = profile.fighter(sel.char);
   $('#ciTitle').textContent = c.title.toUpperCase(); $('#ciName').textContent = c.name;
+  $('#ciLv').innerHTML = `MASTERY<b>LV ${f.lvl}</b> · ${f.wins} WINS · ${f.kos} KOS`;
   $('#ciStats').innerHTML = Object.entries(c.stats).map(([k, v]) => `<span>${k.toUpperCase()}</span><div class="bar"><i style="width:${v * 20}%"></i></div>`).join('');
-  $('#ciMoves').innerHTML = `${c.desc}<br>${c.nSpecial}<b>B</b><br>${c.upSpecial}<b>↑B</b>`;
-  if (changed || !showPuppet || showPuppet.id !== sel.char) { setShowPuppet(sel.char, false); showPuppet.demoT = 0; }
-  try { localStorage.setItem('bb.sel', JSON.stringify(sel)); } catch (_) {}
+  $('#ciMoves').innerHTML = `${c.desc}<br>${c.nSpecial}<b>B</b> ${c.upSpecial}<b>↑B</b>` + (c.inspired ? `<div class="ci-insp">Tribute to ${c.inspired}</div>` : '');
+  if (changed || !showPuppet || showPuppet.id !== sel.char) { setShowPuppet(sel.char, false, profile.cos(sel.char)); showPuppet.demoT = 0; }
+}
+
+// ------------------------------------------------------------------ stage + rules setup
+function goSetup() {
+  mode = 'setup'; showScreen('setup'); ensureAttract();
+  const row = $('#stageRow'); row.innerHTML = '';
+  STAGE_ORDER.forEach((id, i) => {
+    const st = STAGES[id]; const d = document.createElement('button'); d.className = 'stg'; d.dataset.id = id; d.style.animationDelay = (i * 0.04) + 's';
+    d.innerHTML = `<img src="${stageThumbs[id]}" alt=""><div class="sn">${st.name}<small>${st.hazard && st.hazard !== 'None' ? '⚠ ' + st.hazard : st.sub}</small></div>`;
+    d.onclick = () => { sel.stage = id; sound.sfx('move'); refreshSetup(); };
+    row.appendChild(d);
+  });
+  const R = PD().rules;
+  document.querySelectorAll('#rules .seg').forEach(seg => {
+    const k = seg.dataset.rule;
+    seg.querySelectorAll('button').forEach(b => { if (!b.querySelector('span')) b.innerHTML = `<span>${b.textContent}</span>`; b.onclick = () => { let v = b.dataset.v; if (v === 'true' || v === 'false') v = v === 'true'; else if (!isNaN(+v)) v = +v; R[k] = v; sound.sfx('move'); refreshSetup(); }; });
+  });
+  $('#setupFight').onclick = () => startFight();
+  refreshSetup();
+}
+function refreshSetup() {
+  const R = PD().rules; const training = sel.mode === 'training';
+  document.querySelectorAll('.stg').forEach(d => d.classList.toggle('on', d.dataset.id === sel.stage));
+  document.querySelectorAll('#rules .seg').forEach(seg => { const k = seg.dataset.rule; seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', String(R[k]) === b.dataset.v)); });
+  document.querySelectorAll('#rules [data-show]').forEach(r => r.classList.toggle('hide', r.dataset.show !== R.mode));
+  document.querySelectorAll('#rules .rule').forEach(r => { const k = r.querySelector('.seg')?.dataset.rule; if (training && ['mode', 'stocks', 'time', 'level'].includes(k)) r.classList.add('hide'); });
+  // CPU slots
+  const box = $('#cpuSlots'); box.innerHTML = '';
+  const n = training ? 1 : 3;
+  for (let i = 0; i < n; i++) {
+    const on = training || i < R.nRivals, ch = R.rivals[i];
+    const d = document.createElement('div'); d.className = 'slot' + (on ? '' : ' off'); d.style.setProperty('--pc', PCOLORS[i + 1]);
+    d.innerHTML = `<div class="sp"><span class="tag">${training ? 'DUMMY' : 'CPU ' + (i + 1)}</span>${on && ch ? `<img src="${portraits[ch]}">` : `<div class="q">${on ? '?' : '+'}</div>`}</div><div class="sl">${on ? (ch ? CHARS[ch].name : 'RANDOM') : 'OFF'}</div>` + (training ? '' : `<button class="tg">${on ? 'REMOVE' : 'ADD'}</button>`);
+    d.querySelector('.sp').onclick = () => {
+      if (!on) { R.nRivals = i + 1; } else { const pool = [null, ...CHAR_ORDER.filter(id => profile.isUnlocked(id))]; R.rivals[i] = pool[(pool.indexOf(ch ?? null) + 1) % pool.length]; }
+      sound.sfx('move'); refreshSetup();
+    };
+    const tg = d.querySelector('.tg'); if (tg) tg.onclick = () => { R.nRivals = on ? Math.max(1, i) : i + 1; sound.sfx('move'); refreshSetup(); };
+    box.appendChild(d);
+  }
+  profile.save();
+}
+
+// ------------------------------------------------------------------ classic ladder
+let classic = null;
+function startClassic() {
+  const pool = CHAR_ORDER.filter(id => id !== sel.char && id !== 'malgore').sort(() => Math.random() - 0.5);
+  const stages = [...STAGE_ORDER].sort(() => Math.random() - 0.5);
+  classic = { char: sel.char, step: 0, rungs: [
+    { opps: [pool[0]], level: 'easy', stage: stages[0] },
+    { opps: [pool[1]], level: 'normal', stage: stages[1] },
+    { opps: [pool[2], pool[3]], level: 'normal', stage: stages[2] },
+    { opps: [sel.char], level: 'hard', stage: stages[3], mirror: true },
+    { opps: [pool[4], pool[5], pool[6]], level: 'normal', stage: stages[4] },
+    { opps: ['malgore'], level: 'hard', stage: 'nether', boss: true },
+  ], kos: 0 };
+  goLadder();
+}
+function goLadder() {
+  mode = 'ladder'; showScreen('ladder'); ensureAttract();
+  const tr = $('#ladderTrack'); tr.innerHTML = '';
+  classic.rungs.forEach((r, i) => {
+    const d = document.createElement('div'); d.className = 'rung' + (i < classic.step ? ' done' : '') + (i === classic.step ? ' cur' : '') + (r.boss ? ' boss' : '');
+    d.innerHTML = `<img src="${portraits[r.opps[0]]}">${r.opps.length > 1 ? `<span class="multi">×${r.opps.length}</span>` : ''}<div class="rn">${r.boss ? 'GIANT ' + CHARS.malgore.name : r.mirror ? 'DARK MIRROR' : 'ROUND ' + (i + 1)}</div>`;
+    tr.appendChild(d);
+  });
+  const r = classic.rungs[classic.step];
+  $('#ladderInfo').innerHTML = `<div class="li-a">${r.boss ? 'FINAL BOSS: GIANT ' + CHARS.malgore.name : 'ROUND ' + (classic.step + 1) + ' · VS ' + r.opps.map(o => CHARS[o].name).join(' + ')}</div><div class="li-b">${STAGES[r.stage].name} · CPU ${r.level.toUpperCase()} · ${r.boss ? '3 STOCKS VS 2' : '2 STOCKS'}</div>`;
+  $('#ladderGo').onclick = () => startClassicFight();
+  $('#ladderQuit').onclick = () => { sound.sfx('back'); classic = null; goMenu(); };
+}
+function startClassicFight() {
+  const r = classic.rungs[classic.step];
+  const players = [{ char: classic.char, cpu: false, cos: profile.cos(classic.char) }];
+  r.opps.forEach((o, i) => players.push({ char: o, cpu: true, level: r.level, boss: !!r.boss, cos: r.mirror ? { skin: 'shadow', hat: 'horns' } : r.boss ? { skin: 'default', hat: 'crown' } : {} }));
+  startFight({ stage: r.stage, stocks: r.boss ? 3 : 2, cpuStocks: r.boss ? 2 : 2, items: 'low', hazards: true, players, classic: true, boss: !!r.boss });
+}
+
+// ------------------------------------------------------------------ locker
+let lockerChar = null, lockerTab = 'skin', lockerFrom = 'menu';
+function goLocker(fromSelect) {
+  lockerFrom = fromSelect ? 'select' : 'menu';
+  if (!lockerChar || !profile.isUnlocked(lockerChar)) lockerChar = sel.char;
+  mode = 'locker'; showMode = 'locker'; showScreen('locker');
+  const fl = $('#lkFighters'); fl.innerHTML = '';
+  CHAR_ORDER.forEach(id => {
+    const d = document.createElement('button'); d.className = 'lk-f' + (profile.isUnlocked(id) ? '' : ' locked'); d.dataset.id = id;
+    d.innerHTML = `<img src="${portraits[id]}">`;
+    d.onclick = () => { if (!profile.isUnlocked(id)) { sound.sfx('back'); return; } lockerChar = id; sound.sfx('select'); refreshLocker(true); };
+    fl.appendChild(d);
+  });
+  document.querySelectorAll('#lkTabs button').forEach(b => b.onclick = () => { lockerTab = b.dataset.t; sound.sfx('move'); refreshLocker(); });
+  refreshLocker(true);
+}
+function optionsFor(tab, id) {
+  if (tab === 'skin') return Object.entries(PALETTES).filter(([k, p]) => !p.only || p.only === id).map(([k, p]) => ({ id: k, name: p.name, sw: SWATCH[k] }));
+  if (tab === 'hat') return Object.entries(HATS).map(([k, h]) => ({ id: k, name: h.name, ic: HAT_IC[k] }));
+  if (tab === 'pose') return Object.entries(POSES).map(([k, p]) => ({ id: k, name: p.name, ic: POSE_IC[k] }));
+  if (tab === 'ko') return Object.entries(KO_FX).map(([k, p]) => ({ id: k, name: p.name, ic: KO_IC[k] }));
+  if (tab === 'title') return [...new Set([...Object.keys(TITLES), ...PD().own.title])].map(k => ({ id: k, name: titleName(k), ic: '❝❞' }));
+}
+function howToGet(t, id) {
+  for (const [lv, rs] of Object.entries(LEVEL_REWARDS)) for (const r of rs) if (r.t === t && r.id === id) return 'LV ' + lv;
+  const sh = SHOP.find(s => s.t === t && s.id === id); if (sh) return sh.price + '¢';
+  if (t === 'skin' && PALETTES[id]?.only) return 'MASTERY 3';
+  if (t === 'skin' && id === 'neon') return 'SHOP';
+  return 'SPECIAL';
+}
+function refreshLocker(rebuild) {
+  const id = lockerChar, cos = profile.cos(id), d = PD();
+  document.querySelectorAll('.lk-f').forEach(e => e.classList.toggle('on', e.dataset.id === id));
+  document.querySelectorAll('#lkTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === lockerTab));
+  const cur = { skin: cos.skin, hat: cos.hat, pose: d.pose, ko: d.ko, title: d.title }[lockerTab];
+  const g = $('#lkGrid'); g.innerHTML = '';
+  for (const o of optionsFor(lockerTab, id)) {
+    const owned = profile.owns(lockerTab, o.id);
+    const e = document.createElement('button'); e.className = 'opt-c' + (o.id === cur ? ' eq' : '') + (owned ? '' : ' lk');
+    e.innerHTML = (o.sw ? `<div class="sw" style="background:${o.sw}"></div>` : `<div class="ic">${o.ic}</div>`) + `<div class="on">${o.name}</div>` + (owned ? '' : `<div class="req">${howToGet(lockerTab, o.id)}</div>`);
+    e.onclick = () => {
+      if (!owned) { sound.sfx('back'); $('#lkHint').textContent = `${o.name}: unlock at ${howToGet(lockerTab, o.id)}${SHOP.find(s => s.t === lockerTab && s.id === o.id) ? ' (Shop)' : ''}`; return; }
+      profile.equip(id, lockerTab, o.id); sound.sfx('select'); haptic(15);
+      $('#lkHint').textContent = 'EQUIPPED ' + o.name;
+      refreshLocker(lockerTab === 'skin' || lockerTab === 'hat' || lockerTab === 'pose');
+      if (lockerTab === 'ko') showFx.burst(0, 1.6, 0, CHARS[id].color, 30, 6, 0.8, 0.3);
+    };
+    g.appendChild(e);
+  }
+  $('#lkName').innerHTML = `<small>${titleName(d.title)}</small>${CHARS[id].name}`;
+  if (rebuild) { setShowPuppet(id, lockerTab === 'pose', profile.cos(id)); }
+}
+
+// ------------------------------------------------------------------ shop
+let shopTab = 'all';
+function goShop() {
+  mode = 'shop'; showScreen('shop'); ensureAttract();
+  document.querySelectorAll('#shopTabs button').forEach(b => b.onclick = () => { shopTab = b.dataset.t; sound.sfx('move'); refreshShop(); });
+  refreshShop();
+}
+function refreshShop() {
+  document.querySelectorAll('#shopTabs button').forEach(b => b.classList.toggle('on', b.dataset.t === shopTab));
+  const g = $('#shopGrid'); g.innerHTML = '';
+  const list = SHOP.filter(s => shopTab === 'all' || s.t === shopTab).sort((a, b) => profile.owns(a.t, a.id) - profile.owns(b.t, b.id) || a.price - b.price);
+  list.forEach((it, i) => {
+    const owned = profile.owns(it.t, it.id), afford = PD().coins >= it.price;
+    const e = document.createElement('div'); e.className = 'sh-c' + (owned ? ' owned' : ''); e.style.animationDelay = (i * 0.02) + 's';
+    let pv = '';
+    if (it.t === 'char') pv = `<img src="${portraits[it.id]}">`;
+    else if (it.t === 'skin') pv = `<div class="sw" style="background:${SWATCH[it.id]}"></div>`;
+    else pv = `<div class="ic">${{ hat: HAT_IC, ko: KO_IC, pose: POSE_IC, title: {} }[it.t][it.id] || '❝❞'}</div>`;
+    const nm = rewardName(it).split(': ')[1];
+    e.innerHTML = `<div class="pv">${pv}</div><div class="ty">${{ char: 'FIGHTER', skin: 'SKIN', hat: 'HAT', ko: 'KO EFFECT', pose: 'VICTORY POSE', title: 'TITLE' }[it.t]}</div><div class="nm">${nm}</div><button class="buy${owned || afford ? '' : ' no'}">${owned ? 'OWNED' : `<i></i>${it.price}`}</button>`;
+    e.querySelector('.buy').onclick = () => {
+      if (owned) return;
+      if (!afford) { sound.sfx('back'); toastSel('NOT ENOUGH COINS · WIN MATCHES & CLEAR CHALLENGES'); return; }
+      if (profile.buy(it)) { sound.sfx('buy'); haptic(30); refreshCoins(true); toastSel('UNLOCKED ' + nm + '!'); refreshShop(); if (it.t === 'char') buildSelect(); }
+    };
+    g.appendChild(e);
+  });
+}
+
+// ------------------------------------------------------------------ quests
+function goQuests() {
+  mode = 'quests'; showScreen('quests'); ensureAttract(); profile.ensureDaily();
+  const names = q => q.id === 'stage' ? STAGES[q.arg].name : CHARS[q.arg].name;
+  const l = $('#qList'); l.innerHTML = '';
+  PD().daily.quests.forEach((q, i) => {
+    const e = document.createElement('div'); e.className = 'q-c' + (q.done ? ' done' : ''); e.style.animationDelay = (i * 0.06) + 's';
+    e.innerHTML = `<div class="qi">${q.done ? '✓' : '★'}</div><div class="qt"><div class="qn">${profile.questText(q, names)}</div><div class="qb"><i style="width:${100 * q.prog / q.n}%"></i></div><div class="qp">${q.prog} / ${q.n}</div></div>` + (q.done && !q.claimed ? `<button class="claim">CLAIM ${q.reward}</button>` : `<div class="qr">${q.claimed ? 'CLAIMED' : '+' + q.reward}</div>`);
+    const c = e.querySelector('.claim'); if (c) c.onclick = () => { const n = profile.claim(q); sound.sfx('buy'); haptic(30); refreshCoins(true); toastSel('+' + n + ' COINS'); goQuests(); };
+    l.appendChild(e);
+  });
+  const lv = PD().lvl; let h = `<h4>LEVEL ROAD</h4>`;
+  for (const [L, rs] of Object.entries(LEVEL_REWARDS)) h += `<div class="lv-r${+L <= lv ? ' got' : ''}${+L === lv + 1 ? ' next' : ''}"><b>LV ${L}</b><span>${rs.map(rewardName).join('<br>')}</span></div>`;
+  h += `<h4 style="margin-top:10px">FIGHTER MASTERY</h4><div class="lv-r"><b>LV 2</b><span>40 coins</span></div><div class="lv-r"><b>LV 3</b><span>Signature skin (where available)</span></div><div class="lv-r"><b>LV 5</b><span>"&lt;FIGHTER&gt; MAIN" title</span></div><div class="lv-r"><b>LV 7</b><span>120 coins</span></div><div class="lv-r"><b>LV 10</b><span>NEON skin</span></div>`;
+  $('#qLevels').innerHTML = h;
+}
+
+// ------------------------------------------------------------------ stats
+function goStats() {
+  mode = 'stats'; showScreen('stats'); ensureAttract();
+  const s = PD().stats, mins = Math.round(s.time / 60);
+  const T = [['MATCHES', s.games], ['WINS', s.wins], ['WIN RATE', s.games ? Math.round(100 * s.wins / s.games) + '%' : '—'], ['KOS', s.kos], ['FALLS', s.falls], ['DAMAGE', s.dmg + '%'], ['POWER-UPS', s.items], ['BEST COMBO', s.bestCombo], ['CLASSIC CLEARS', s.classic], ['PLAY TIME', mins + 'm']];
+  $('#stTotals').innerHTML = T.map(([k, v]) => `<div class="st-t"><b>${v}</b><span>${k}</span></div>`).join('');
+  $('#stTable').innerHTML = `<tr><th>FIGHTER</th><th>MASTERY</th><th>GAMES</th><th>WINS</th><th>KOS</th></tr>` + CHAR_ORDER.map(id => { const f = profile.fighter(id); const un = profile.isUnlocked(id); return `<tr><td><img src="${portraits[id]}">${un ? CHARS[id].name : '???'}</td><td>${f.lvl}<span class="mbar"><i style="width:${f.lvl >= 10 ? 100 : 100 * f.xp / fxpForLevel(f.lvl)}%"></i></span></td><td>${f.games}</td><td>${f.wins}</td><td>${f.kos}</td></tr>`; }).join('');
+}
+
+// ------------------------------------------------------------------ settings
+function goSettings() {
+  mode = 'settings'; showScreen('settings'); ensureAttract();
+  const S = PD().settings;
+  document.querySelectorAll('#setGrid .seg').forEach(seg => {
+    const k = seg.dataset.set;
+    seg.querySelectorAll('button').forEach(b => {
+      if (!b.querySelector('span')) b.innerHTML = `<span>${b.textContent}</span>`;
+      b.classList.toggle('on', String(S[k]) === b.dataset.v);
+      b.onclick = () => { let v = b.dataset.v; if (v === 'true' || v === 'false') v = v === 'true'; else if (!isNaN(+v)) v = +v; S[k] = v; profile.save(); applySettings(); sound.sfx('move'); goSettings(); };
+    });
+  });
+  $('#setReset').onclick = () => { if (!$('#setReset').dataset.arm) { $('#setReset').dataset.arm = 1; $('#setReset').textContent = 'TAP AGAIN TO CONFIRM'; return; } profile.reset(); delete $('#setReset').dataset.arm; $('#setReset').textContent = 'RESET PROGRESS'; sel.char = 'blockjack'; buildSelect(); applySettings(); toastSel('PROGRESS RESET'); goSettings(); };
 }
 
 // ------------------------------------------------------------------ flow
 let mode = 'loading';
-function goTitle() {
-  mode = 'title'; showScreen('title');
+let lastScreen = 'menu';
+function ensureAttract() {
+  if (game.attract && game.fighters.length) return;
   const ids = [...CHAR_ORDER].sort(() => Math.random() - 0.5).slice(0, 4);
-  game.startMatch({ stage: Math.random() < 0.5 ? 'overworld' : 'nether', attract: true, players: ids.map(id => ({ char: id, cpu: true, level: 'hard' })) });
+  game.startMatch({ stage: STAGE_ORDER[Math.floor(Math.random() * STAGE_ORDER.length)], attract: true, players: ids.map(id => ({ char: id, cpu: true, level: 'hard' })) });
   sound.music('menu');
 }
-function goSelect() {
-  mode = 'select'; showMode = 'select'; showScreen('select'); refreshSelect(true); sound.music('menu');
+function goTitle() { mode = 'title'; showScreen('title'); game.attract = false; ensureAttract(); }
+function goMenu() { mode = 'menu'; showScreen('menu'); ensureAttract(); refreshMenu(); sound.music('menu'); }
+function goSelect() { mode = 'select'; showMode = 'select'; showScreen('select'); refreshSelect(true); sound.music('menu'); }
+function goBack() {
+  if (mode === 'select') goMenu();
+  else if (mode === 'setup') goSelect();
+  else if (mode === 'ladder') { classic = null; goMenu(); }
+  else if (mode === 'locker' && lockerFrom === 'select') goSelect();
+  else goMenu();
 }
 function startFight(cfg) {
   if (!navigator.userActivation || navigator.userActivation.hasBeenActive) sound.init();
+  const R = PD().rules;
   if (!cfg) {
-    const others = CHAR_ORDER.filter(id => id !== sel.char).sort(() => Math.random() - 0.5);
-    cfg = { stage: sel.stage, stocks: 3, items: sel.items || 'med', hazards: sel.hazards !== false, players: [{ char: sel.char, cpu: false }, ...others.slice(0, sel.rivals).map(id => ({ char: id, cpu: true, level: sel.level }))] };
+    const training = sel.mode === 'training';
+    const owned = CHAR_ORDER.filter(id => id !== sel.char);
+    const randomPool = owned.sort(() => Math.random() - 0.5);
+    const n = training ? 1 : R.nRivals;
+    const rivals = []; for (let i = 0; i < n; i++) { let c = R.rivals[i]; if (!c) c = randomPool.find(x => !rivals.includes(x)) || 'bristle'; rivals.push(c); }
+    cfg = { stage: sel.stage, stocks: R.stocks, time: !training && R.mode === 'time' ? R.time * 60 : 0, items: training ? 'off' : R.items, hazards: R.hazards, training,
+      players: [{ char: sel.char, cpu: false, cos: profile.cos(sel.char) }, ...rivals.map(id => ({ char: id, cpu: true, level: training ? 'easy' : R.level, cos: Math.random() < 0.35 ? { skin: ['shadow', 'gold', 'frost', 'crimson', 'neon'][Math.floor(Math.random() * 5)], hat: Object.keys(HATS)[Math.floor(Math.random() * 9)] } : {} }))] };
+    PD().last.stage = sel.stage; profile.save();
   }
-  sound.sfx('select');
+  sound.sfx('go');
   mode = 'fight'; showScreen('hud');
   game.startMatch(cfg); input.clear();
+  $('#trainPanel').classList.toggle('on', !!cfg.training);
+  $('#timer').classList.toggle('on', !!cfg.time);
   sound.music(null);
   perf.acc = 0; perf.n = 0; perf.grace = 2;
 }
+let lastResult = null;
 function showResults() {
   mode = 'results'; showMode = 'results';
-  const w = game.winner;
-  setShowPuppet(w.id, true);
+  const w = game.winner, human = game.fighters.find(f => !f.cpu), cfg = game.cfg;
+  setShowPuppet(w.id, true, w.cos || {});
   $('#results').style.setProperty('--wc', w.color);
+  const won = human && w === human;
+  $('#resWin').textContent = cfg.classic ? (won ? (cfg.boss ? 'CHAMPION!' : 'VICTORY') : 'DEFEATED') : 'WINNER';
   $('#resName').textContent = CHARS[w.id].name;
-  $('#resSub').textContent = (w.cpu ? 'CPU' : 'PLAYER 1') + ' WINS';
-  const rows = [...game.fighters].sort((a, b) => (b === w) - (a === w) || b.stocks - a.stocks || b.kos - a.kos);
-  $('#resTable').innerHTML = `<tr><th></th><th>KOS</th><th>FALLS</th><th>DMG DEALT</th></tr>` + rows.map(f => `<tr style="--pc:${f.color}"><td>${f.cpu ? 'CPU' : 'P1'} · ${CHARS[f.id].name}</td><td>${f.kos}</td><td>${f.falls}</td><td>${Math.round(f.dealt)}%</td></tr>`).join('');
+  $('#resSub').textContent = (w.cpu ? 'CPU' : 'PLAYER 1') + ' WINS' + (cfg.time ? ' · TIME' : '');
+  const rows = [...game.fighters].sort((a, b) => (b === w) - (a === w) || b.score - a.score || b.stocks - a.stocks || b.kos - a.kos);
+  $('#resTable').innerHTML = `<tr><th></th><th>KOS</th><th>FALLS</th><th>DMG</th></tr>` + rows.map(f => `<tr style="--pc:${f.color}"><td>${f.cpu ? 'CPU' : 'P1'} · ${CHARS[f.id].name}</td><td>${f.kos}</td><td>${f.falls}</td><td>${Math.round(f.dealt)}%</td></tr>`).join('');
+  // progression
+  let clear = false;
+  if (cfg.classic && classic && won) { classic.step++; if (classic.step >= classic.rungs.length) clear = true; }
+  const res = human ? profile.applyMatch({ char: human.id, won, kos: human.kos, falls: human.falls, dmg: human.dealt, items: human.itemsTaken || 0, stage: cfg.stage, classic: !!cfg.classic, classicClear: clear, boss: !!cfg.boss && won, combo: human.maxCombo || 0, secs: Math.round(game.t), training: cfg.training }) : null;
+  lastResult = res;
   showScreen('results'); layoutShowCam();
+  animateProgress(res, human);
+  // buttons
+  if (cfg.classic) {
+    $('#rAgain span').textContent = clear ? 'FINISH' : won ? 'CONTINUE' : 'RETRY';
+    $('#rSelect').textContent = 'GIVE UP'; $('#rTitle').textContent = 'MENU';
+  } else { $('#rAgain span').textContent = 'REMATCH'; $('#rSelect').textContent = 'FIGHTERS'; $('#rTitle').textContent = 'MENU'; }
+  if (clear) { classic = null; }
   for (let i = 0; i < 4; i++) setTimeout(() => showFx.burst((Math.random() - 0.5) * 3, 3 + Math.random() * 2, 0, ['#ffd040', '#ff4a6a', '#40c0ff', '#a0ff60'][i], 50, 8, 1.6, 0.25, { grav: 0.6, drag: 1.2 }), i * 250);
   sound.sfx('cheer'); sound.music('menu');
+}
+function animateProgress(res, human) {
+  const pg = $('#prog'); pg.style.display = res ? '' : 'none'; if (!res) return;
+  const d = PD(), f = profile.fighter(human.id);
+  $('#pgFName').textContent = CHARS[human.id].name;
+  $('#pgUnlocks').innerHTML = '';
+  let lv = res.before.lvl, xp = res.before.xp, flv = res.fBefore.lvl, fxp = res.fBefore.xp;
+  const setBars = () => { $('#pgLv').textContent = 'LV ' + lv; $('#pgBar').style.width = (100 * xp / xpForLevel(lv)) + '%'; $('#pgFLv').textContent = 'LV ' + flv; $('#pgFBar').style.width = (flv >= 10 ? 100 : 100 * fxp / fxpForLevel(flv)) + '%'; };
+  $('#pgBar').style.transition = 'none'; $('#pgFBar').style.transition = 'none'; setBars(); void pg.offsetWidth;
+  $('#pgBar').style.transition = ''; $('#pgFBar').style.transition = '';
+  $('#pgXp').textContent = '+0 XP'; $('#pgCoins').textContent = '+0';
+  let shownXp = 0, shownC = 0, remaining = res.xp, fRemaining = res.xp, luQueue = [...res.levelUps];
+  const chips = [];
+  for (const l of res.levelUps) chips.push(...l.rewards.map(r => rewardName(r)));
+  for (const l of res.fLevelUps) chips.push(...l.rewards.map(r => CHARS[human.id].name + ' ' + rewardName(r)));
+  const quests = res.quests.map(q => 'CHALLENGE DONE: +' + q.reward + ' (claim in Challenges)');
+  const tick = () => {
+    if (mode !== 'results') return;
+    const stepX = Math.max(1, Math.ceil(res.xp / 40));
+    if (remaining > 0) {
+      const a = Math.min(stepX, remaining); remaining -= a; shownXp += a; xp += a;
+      if (xp >= xpForLevel(lv)) { xp -= xpForLevel(lv); lv++; $('#pgLv').classList.remove('up'); void pg.offsetWidth; $('#pgLv').classList.add('up'); const L = luQueue.shift(); levelUpPop(lv, L ? L.rewards : []); }
+    }
+    if (fRemaining > 0) {
+      const a = Math.min(stepX, fRemaining); fRemaining -= a; if (flv < 10) { fxp += a; if (fxp >= fxpForLevel(flv)) { fxp -= fxpForLevel(flv); flv++; sound.sfx('levelup'); } }
+    }
+    if (shownC < res.coins) { shownC = Math.min(res.coins, shownC + Math.max(1, Math.ceil(res.coins / 30))); }
+    $('#pgXp').textContent = '+' + shownXp + ' XP'; $('#pgCoins').innerHTML = '+' + shownC + ' ¢';
+    setBars(); if (remaining % 3 === 0) sound.sfx('tick');
+    if (remaining > 0 || fRemaining > 0 || shownC < res.coins) setTimeout(tick, 45);
+    else { refreshCoins(true); const u = $('#pgUnlocks'); chips.forEach((c, i) => { const s = document.createElement('span'); s.textContent = c; s.style.animationDelay = (i * 0.08) + 's'; u.appendChild(s); }); quests.forEach(c => { const s = document.createElement('span'); s.className = 'q'; s.textContent = c; u.appendChild(s); }); if (res.levelUps.some(l => l.rewards.some(r => r.t === 'char'))) buildSelect(); }
+  };
+  setTimeout(tick, 900);
+}
+function levelUpPop(lv, rewards) {
+  sound.sfx('levelup'); haptic(40);
+  $('#luLv').textContent = lv; $('#luRew').innerHTML = rewards.length ? rewards.map(rewardName).join('<br>') : 'Keep brawling!';
+  const el = $('#levelup'); el.classList.add('on'); clearTimeout(levelUpPop.h); levelUpPop.h = setTimeout(() => el.classList.remove('on'), 1900);
+  for (let i = 0; i < 3; i++) setTimeout(() => showFx.burst((Math.random() - 0.5) * 3, 2.5, 0, '#ffd040', 40, 9, 1.2, 0.3, { grav: 0.5 }), i * 150);
 }
 function pause(on) {
   if (mode !== 'fight') return;
@@ -691,37 +1054,43 @@ function pause(on) {
 $('#pauseBtn').addEventListener('click', () => pause(true));
 $('#pResume').onclick = () => pause(false);
 $('#pRestart').onclick = () => { game.paused = false; startFight(game.cfg); };
-$('#pQuit').onclick = () => { game.paused = false; goSelect(); };
-$('#pGfx').onclick = () => { quality = QLIST[(QLIST.indexOf(quality) + 2) % 3]; buildComposer(); };
-$('#pSnd').onclick = () => { sound.setMuted(!sound.muted); $('#pSnd').textContent = 'SOUND: ' + (sound.muted ? 'OFF' : 'ON'); };
-$('#rAgain').onclick = () => startFight(game.cfg);
-$('#rSelect').onclick = () => goSelect();
-$('#rTitle').onclick = () => goTitle();
+$('#pQuit').onclick = () => { game.paused = false; if (game.cfg.classic) { classic = null; goMenu(); } else goSelect(); };
+$('#pGfx').onclick = () => { const order = ['auto', 'low', 'medium', 'high']; const S = PD().settings; S.quality = order[(order.indexOf(S.quality) + 1) % 4]; profile.save(); applySettings(); $('#pGfx').textContent = 'GRAPHICS: ' + S.quality.toUpperCase(); };
+$('#pSnd').onclick = () => { const S = PD().settings; S.sound = !S.sound; profile.save(); applySettings(); $('#pSnd').textContent = 'SOUND: ' + (S.sound ? 'ON' : 'OFF'); };
+$('#rAgain').onclick = () => { if (game.cfg.classic) { if (classic) goLadder(); else goMenu(); } else startFight(game.cfg); };
+$('#rSelect').onclick = () => { if (game.cfg.classic) { classic = null; goMenu(); } else goSelect(); };
+$('#rTitle').onclick = () => { classic = null; goMenu(); };
+document.querySelectorAll('#tpDummy button').forEach(b => b.onclick = () => { game.dummyMode = b.dataset.v; document.querySelectorAll('#tpDummy button').forEach(x => x.classList.toggle('on', x === b)); });
+$('#tpItem').onclick = () => { const h = game.fighters[0]; game.items.spawn(game.items.randomType(), clamp(h.x + h.facing * 2, -7, 7), h.y + 5); sound.sfx('item'); };
+$('#tpReset').onclick = () => { for (const f of game.fighters) f.pct = 0; updateHud(true); };
 function requestFS() {
   const el = document.documentElement;
   try { const p = (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el, { navigationUI: 'hide' }); if (p && p.catch) p.catch(() => {}); } catch (_) {}
   try { screen.orientation?.lock?.('landscape').catch(() => {}); } catch (_) {}
 }
-$('#title').addEventListener('pointerdown', () => { if (mode !== 'title') return; sound.init(); sound.sfx('select'); if (isTouch) requestFS(); goSelect(); });
+$('#title').addEventListener('pointerdown', () => { if (mode !== 'title') return; sound.init(); applySettings(); sound.sfx('select'); if (isTouch) requestFS(); goMenu(); });
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
-  if (mode === 'title' && (k === 'enter' || k === ' ' || k === 'j')) { sound.init(); sound.sfx('select'); goSelect(); }
+  if (mode === 'title' && (k === 'enter' || k === ' ' || k === 'j')) { sound.init(); applySettings(); sound.sfx('select'); goMenu(); }
   else if (mode === 'select') {
-    if (k === 'enter') startFight();
-    if (k === 'arrowright' || k === 'arrowleft' || k === 'a' || k === 'd') { const i = CHAR_ORDER.indexOf(sel.char); sel.char = CHAR_ORDER[(i + (k === 'arrowright' || k === 'd' ? 1 : CHAR_ORDER.length - 1)) % CHAR_ORDER.length]; sound.sfx('select'); refreshSelect(true); }
-    if (k === 'escape') goTitle();
-  } else if (mode === 'fight' && (k === 'escape' || k === 'p')) pause(!game.paused);
-  else if (mode === 'results' && k === 'enter') startFight(game.cfg);
+    if (k === 'enter') $('#selNext').click();
+    if (k === 'arrowright' || k === 'arrowleft') { const un = CHAR_ORDER.filter(id => profile.isUnlocked(id)); const i = un.indexOf(sel.char); sel.char = un[(i + (k === 'arrowright' ? 1 : un.length - 1)) % un.length]; sound.sfx('select'); refreshSelect(true); }
+    if (k === 'escape') goBack();
+  } else if (mode === 'setup' && k === 'enter') startFight();
+  else if (mode === 'fight' && (k === 'escape' || k === 'p')) pause(!game.paused);
+  else if (mode === 'results' && k === 'enter') $('#rAgain').click();
+  else if (k === 'escape' && !['fight', 'title', 'loading'].includes(mode)) goBack();
 });
 document.addEventListener('visibilitychange', () => { if (document.hidden && mode === 'fight' && !game.paused) pause(true); });
 
 // ------------------------------------------------------------------ loop
 const perf = { acc: 0, n: 0, grace: 2 };
+const WORLD_MODES = new Set(['title', 'menu', 'setup', 'ladder', 'shop', 'quests', 'stats', 'settings']);
 let last = performance.now(), acc = 0, time = 0;
 function loop(now) {
   requestAnimationFrame(loop);
   let dt = Math.min(0.1, (now - last) / 1000); last = now; time += dt;
-  if (mode === 'fight' || mode === 'title') {
+  if (mode === 'fight' || WORLD_MODES.has(mode)) {
     if (!game.paused) {
       acc += dt * game.timeScale; let n = 0;
       while (acc >= DT && n < 5) { game.step(); acc -= DT; n++; }
@@ -740,15 +1109,16 @@ function loop(now) {
         if (perf.acc > 3) { const avg = perf.acc / perf.n; if (avg > 1 / 42 && quality !== 'low') { quality = QLIST[QLIST.indexOf(quality) - 1]; buildComposer(); toast('GRAPHICS SET TO ' + quality.toUpperCase() + ' FOR SMOOTHER PLAY'); perf.grace = 2; } perf.acc = 0; perf.n = 0; }
       }
     }
-  } else if (mode === 'select' || mode === 'results') {
+  } else if (mode === 'select' || mode === 'results' || mode === 'locker') {
     if (showPuppet) {
       const p = showPuppet;
       p.anim.t += dt; p.demoT = (p.demoT || 0) + dt;
-      if (mode === 'select' && p.state === 'idle' && p.demoT > 0.35 && !p.demoDone) { p.demoDone = true; p.moveKey = 'ftilt'; p.move = p.moves.ftilt; p.state = 'attack'; p.stateT = 0; }
+      if ((mode === 'select' || mode === 'locker') && p.state === 'idle' && p.demoT > 0.35 && !p.demoDone && !p.victory) { p.demoDone = true; p.moveKey = 'ftilt'; p.move = p.moves.ftilt; p.state = 'attack'; p.stateT = 0; }
       if (p.state === 'attack') { p.stateT++; if (p.stateT >= p.move.t) { p.state = 'idle'; p.stateT = 0; } }
       p.animate(dt, time);
       showStuff.ped.rotation.y += dt * 0.3;
-      p.rig.root.rotation.y = mode === 'select' ? Math.sin(time * 0.6) * 0.35 - 0.1 : -0.25;
+      showStuff.beam.material.opacity = mode === 'locker' ? 0.07 : 0.25;
+      p.rig.root.rotation.y = mode === 'select' ? Math.sin(time * 0.6) * 0.35 - 0.1 : mode === 'locker' ? Math.sin(time * 0.5) * 0.6 : -0.25;
       if (Math.random() < dt * 20) showFx.spawn((Math.random() - 0.5) * 4, 0.4, (Math.random() - 0.5) * 4, 0, 1 + Math.random() * 2, 0, ...new THREE.Color(CHARS[p.id].color).multiplyScalar(2).toArray(), 2, 0.08 + Math.random() * 0.1, 0, 0, 0);
     }
     showStuff.dome.material.uniforms.t.value = time;
@@ -787,10 +1157,12 @@ async function boot() {
   addEventListener('orientationchange', () => setTimeout(onResize, 300));
   onResize();
   requestAnimationFrame(loop);
+  applySettings();
   const start = params.get('start');
-  if (start === 'select') goSelect();
-  else if (start === 'fight') { goSelect(); startFight(); }
+  if (start === 'menu') goMenu();
+  else if (start === 'select') { sel.mode = params.get('mode') || 'vs'; goSelect(); }
+  else if (start === 'fight') { sel.mode = 'vs'; startFight(); }
   else goTitle();
 }
-window.__bb = { stageThumbs, get game() { return game; }, input, sound, startFight, goSelect, goTitle, showResults, sel, get mode() { return mode; }, get quality() { return quality; }, renderer };
+window.__bb = { stageThumbs, profile, goMenu, goSetup, goLocker, goShop, goQuests, goStats, goSettings, startClassic, goLadder, get classic() { return classic; }, get game() { return game; }, input, sound, startFight, goSelect, goTitle, showResults, sel, get mode() { return mode; }, get quality() { return quality; }, renderer };
 boot().catch(e => { console.error(e); $('#loadtxt').textContent = 'ERROR: ' + e.message; });

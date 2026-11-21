@@ -33,32 +33,120 @@
   <div class="foot">An original fan-made platform fighter · Best in landscape</div>
 </div>
 
-<div id="select" class="screen">
-  <div class="sel-top">
-    <button class="back" id="selBack">‹</button>
-    <div class="sel-title">CHOOSE YOUR <b>FIGHTER</b></div>
-    <div class="opts">
-      <div class="opt"><label>RIVALS</label><div class="seg" id="optRivals"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
-      <div class="opt"><label>CPU</label><div class="seg" id="optLevel"><button data-v="easy">EASY</button><button data-v="normal">NORM</button><button data-v="hard">HARD</button></div></div>
+<div id="menu" class="screen">
+  <div class="menu-top">
+    <div class="plate" id="plate"><div class="pl-av"><img id="plAv" alt=""></div><div class="pl-info"><div class="pl-row"><span class="pl-lv" id="plLv">LV 1</span><span class="pl-title" id="plTitle">ROOKIE</span></div><div class="xpbar"><i id="plXp"></i></div><div class="pl-xp" id="plXpTxt">0 / 120 XP</div></div></div>
+    <div class="menu-logo">BLOCK <b>BRAWL</b></div>
+    <div class="coins big"><i></i><span class="coinv">0</span></div>
+    <button class="icon-btn" id="mSettings" aria-label="Settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.7 7.7 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.6 7.6 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.6 7.6 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.7 7.7 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.6 7.6 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.6 7.6 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg></button>
+  </div>
+  <div class="tiles">
+    <button class="tile t-vs" data-go="vs"><div class="t-art"></div><div class="t-lbl">SMASH</div><div class="t-sub">Free-for-all versus CPUs</div></button>
+    <div class="tile-col">
+      <button class="tile t-classic" data-go="classic"><div class="t-art"></div><div class="t-lbl">CLASSIC</div><div class="t-sub">6-fight ladder &amp; boss</div></button>
+      <button class="tile t-train" data-go="training"><div class="t-art"></div><div class="t-lbl">TRAINING</div><div class="t-sub">Lab &amp; combos</div></button>
+    </div>
+    <div class="tile-grid">
+      <button class="tile sm t-locker" data-go="locker"><div class="t-ico"><svg viewBox="0 0 24 24" ><path d="M8 3 3 6l2 4.5 2-1V21h10V9.5l2 1L21 6l-5-3c-.6 1.6-2 2.6-4 2.6S8.6 4.6 8 3z"/></svg></div><div class="t-lbl">LOCKER</div></button>
+      <button class="tile sm t-shop" data-go="shop"><div class="t-ico"><svg viewBox="0 0 24 24" ><path d="M5 8h14l-1.2 13H6.2L5 8zm4 0V6.5a3 3 0 0 1 6 0V8h-1.6V6.5a1.4 1.4 0 0 0-2.8 0V8z"/></svg></div><div class="t-lbl">SHOP</div></button>
+      <button class="tile sm t-quests" data-go="quests"><div class="t-ico"><svg viewBox="0 0 24 24" ><path d="M12 2.5l2.9 6.1 6.6.8-4.9 4.6 1.3 6.6L12 17.3l-5.9 3.3 1.3-6.6-4.9-4.6 6.6-.8z"/></svg></div><div class="t-lbl">CHALLENGES</div><span class="badge" id="qBadge"></span></button>
+      <button class="tile sm t-stats" data-go="stats"><div class="t-ico"><svg viewBox="0 0 24 24" ><path d="M4 20V10h3.5v10zm6.2 0V4h3.6v16zm6.3 0v-7H20v7z"/></svg></div><div class="t-lbl">STATS</div></button>
     </div>
   </div>
+</div>
+
+<div id="select" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">CHOOSE YOUR <b>FIGHTER</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="sel-mode" id="selMode">SMASH</div>
   <div class="sel-info" id="selInfo">
     <div class="ci-title" id="ciTitle"></div>
     <div class="ci-name" id="ciName"></div>
+    <div class="ci-lv" id="ciLv"></div>
     <div class="ci-stats" id="ciStats"></div>
     <div class="ci-moves" id="ciMoves"></div>
   </div>
   <div class="sel-bottom">
     <div class="roster" id="roster"></div>
     <div class="go-col">
-      <div class="stage-pick"><button id="stPrev">‹</button><div><small>STAGE</small><span id="stName"></span></div><button id="stNext">›</button></div>
-      <button class="fight-btn" id="fightBtn"><span>FIGHT!</span></button>
+      <button class="chip-btn" id="selLocker">✦ CUSTOMIZE</button>
+      <button class="btn-primary" id="selNext"><span>NEXT</span></button>
     </div>
   </div>
 </div>
 
+<div id="setup" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">STAGE &amp; <b>RULES</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="stage-row" id="stageRow"></div>
+  <div class="setup-bottom">
+    <div class="rules glass" id="rules">
+      <div class="rule"><label>MODE</label><div class="seg" data-rule="mode"><button data-v="stock">STOCK</button><button data-v="time">TIME</button></div></div>
+      <div class="rule" data-show="stock"><label>STOCKS</label><div class="seg" data-rule="stocks"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button><button data-v="5">5</button></div></div>
+      <div class="rule" data-show="time"><label>TIME</label><div class="seg" data-rule="time"><button data-v="2">2:00</button><button data-v="3">3:00</button><button data-v="5">5:00</button></div></div>
+      <div class="rule"><label>ITEMS</label><div class="seg" data-rule="items"><button data-v="off">OFF</button><button data-v="low">LOW</button><button data-v="med">MED</button><button data-v="high">HIGH</button></div></div>
+      <div class="rule"><label>HAZARDS</label><div class="seg" data-rule="hazards"><button data-v="true">ON</button><button data-v="false">OFF</button></div></div>
+      <div class="rule"><label>CPU LEVEL</label><div class="seg" data-rule="level"><button data-v="easy">EASY</button><button data-v="normal">NORM</button><button data-v="hard">HARD</button></div></div>
+    </div>
+    <div class="cpu-slots glass" id="cpuSlots"></div>
+    <button class="btn-primary fight" id="setupFight"><span>FIGHT!</span></button>
+  </div>
+</div>
+
+<div id="ladder" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">CLASSIC <b>LADDER</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="ladder-track" id="ladderTrack"></div>
+  <div class="ladder-info" id="ladderInfo"></div>
+  <div class="ladder-btns"><button class="btn-ghost" id="ladderQuit">GIVE UP</button><button class="btn-primary" id="ladderGo"><span>FIGHT!</span></button></div>
+</div>
+
+<div id="locker" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">THE <b>LOCKER</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="lk-fighters" id="lkFighters"></div>
+  <div class="lk-panel glass">
+    <div class="tabs" id="lkTabs"><button data-t="skin">SKINS</button><button data-t="hat">HATS</button><button data-t="pose">POSES</button><button data-t="ko">KO FX</button><button data-t="title">TITLES</button></div>
+    <div class="lk-grid" id="lkGrid"></div>
+    <div class="lk-hint" id="lkHint"></div>
+  </div>
+  <div class="lk-name" id="lkName"></div>
+</div>
+
+<div id="shop" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">ITEM <b>SHOP</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="tabs shop-tabs" id="shopTabs"><button data-t="all">ALL</button><button data-t="char">FIGHTERS</button><button data-t="skin">SKINS</button><button data-t="hat">HATS</button><button data-t="ko">KO FX</button><button data-t="pose">POSES</button><button data-t="title">TITLES</button></div>
+  <div class="shop-grid" id="shopGrid"></div>
+</div>
+
+<div id="quests" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">DAILY <b>CHALLENGES</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="q-list" id="qList"></div>
+  <div class="q-levels glass" id="qLevels"></div>
+</div>
+
+<div id="stats" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title">PLAYER <b>STATS</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="st-wrap"><div class="st-totals" id="stTotals"></div><div class="st-table glass"><table id="stTable"></table></div></div>
+</div>
+
+<div id="settings" class="screen">
+  <div class="topbar"><button class="back" data-back aria-label="Back">‹</button><div class="tb-title"><b>SETTINGS</b></div><div class="coins"><i></i><span class="coinv">0</span></div></div>
+  <div class="set-grid glass" id="setGrid">
+    <div class="rule"><label>GRAPHICS</label><div class="seg" data-set="quality"><button data-v="auto">AUTO</button><button data-v="low">LOW</button><button data-v="medium">MED</button><button data-v="high">HIGH</button></div></div>
+    <div class="rule"><label>SOUND FX</label><div class="seg" data-set="sound"><button data-v="true">ON</button><button data-v="false">OFF</button></div></div>
+    <div class="rule"><label>MUSIC</label><div class="seg" data-set="music"><button data-v="true">ON</button><button data-v="false">OFF</button></div></div>
+    <div class="rule"><label>HAPTICS</label><div class="seg" data-set="haptics"><button data-v="true">ON</button><button data-v="false">OFF</button></div></div>
+    <div class="rule"><label>BUTTON SIZE</label><div class="seg" data-set="tsize"><button data-v="0.85">S</button><button data-v="1">M</button><button data-v="1.15">L</button><button data-v="1.3">XL</button></div></div>
+    <div class="rule"><label>BUTTON OPACITY</label><div class="seg" data-set="topac"><button data-v="0.45">45%</button><button data-v="0.65">65%</button><button data-v="0.85">85%</button><button data-v="1">100%</button></div></div>
+    <div class="rule"><label>CONTROLS</label><div class="seg" data-set="lefty"><button data-v="false">RIGHT-HANDED</button><button data-v="true">LEFT-HANDED</button></div></div>
+    <div class="rule"><label>DAMAGE POPUPS</label><div class="seg" data-set="dmgNums"><button data-v="true">ON</button><button data-v="false">OFF</button></div></div>
+    <div class="rule"><label>SAVE DATA</label><button class="btn-ghost danger" id="setReset">RESET PROGRESS</button></div>
+  </div>
+  <div class="set-help">Move: joystick (left) · Flick up / ▲: jump · A: attack (+ direction for strong attacks) · B: special (↑B recovers) · ◆: shield (+ direction to dodge) · GRAB button: grab, then push a direction to throw · Grab items by touching them; A throws a held TNT.</div>
+</div>
+
 <div id="hud" class="screen">
   <button id="pauseBtn" aria-label="Pause"><i></i><i></i></button>
+  <div id="timer"></div>
+  <div id="combo"></div>
+  <div id="trainPanel" class="glass"><div class="tp-row"><span>DUMMY</span><div class="seg" id="tpDummy"><button data-v="stand">STAND</button><button data-v="jump">JUMP</button><button data-v="cpu">FIGHT</button></div></div><div class="tp-row"><button class="chip-btn" id="tpItem">+ ITEM</button><button class="chip-btn" id="tpReset">RESET %</button></div></div>
   <div id="cards"></div>
   <div id="banner"></div>
   <div id="toast"></div>
@@ -71,6 +159,7 @@
   <div class="tbtn" data-btn="special" id="bB"><span>B</span><small>SPECIAL</small></div>
   <div class="tbtn" data-btn="jump" id="bJ"><span>▲</span><small>JUMP</small></div>
   <div class="tbtn" data-btn="shield" id="bS"><span>◆</span><small>SHIELD</small></div>
+  <div class="tbtn" data-btn="grab" id="bG"><span>G</span><small>GRAB</small></div>
 </div>
 
 <div id="pause" class="screen modal">
@@ -86,15 +175,24 @@
 
 <div id="results" class="screen">
   <div class="res-left">
-    <div class="res-win">WINNER</div>
+    <div class="res-win" id="resWin">WINNER</div>
     <div class="res-name" id="resName"></div>
     <div class="res-sub" id="resSub"></div>
+    <table id="resTable"></table>
   </div>
   <div class="res-right">
-    <table id="resTable"></table>
-    <div class="res-btns"><button id="rAgain" class="big">REMATCH</button><button id="rSelect">FIGHTERS</button><button id="rTitle">TITLE</button></div>
+    <div class="prog glass" id="prog">
+      <div class="pg-row"><span class="pg-lbl">ACCOUNT</span><span class="pg-lv" id="pgLv">LV 1</span><span class="pg-gain" id="pgXp">+0 XP</span></div>
+      <div class="xpbar big"><i id="pgBar"></i></div>
+      <div class="pg-row"><span class="pg-lbl" id="pgFName">FIGHTER</span><span class="pg-lv" id="pgFLv">LV 1</span><span class="pg-gain coin" id="pgCoins">+0</span></div>
+      <div class="xpbar"><i id="pgFBar"></i></div>
+      <div class="pg-unlocks" id="pgUnlocks"></div>
+    </div>
+    <div class="res-btns"><button id="rAgain" class="btn-primary"><span>REMATCH</span></button><button id="rSelect" class="btn-ghost">FIGHTERS</button><button id="rTitle" class="btn-ghost">MENU</button></div>
   </div>
 </div>
+
+<div id="levelup"><div class="lu-card"><div class="lu-top">LEVEL UP!</div><div class="lu-lv" id="luLv">2</div><div class="lu-rew" id="luRew"></div></div></div>
 
 <div id="rotate"><div class="phone"></div><div>ROTATE YOUR PHONE</div><small>Block Brawl plays in landscape</small></div>
 
