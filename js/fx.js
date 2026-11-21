@@ -1,5 +1,5 @@
 // Block Brawl - particles, sparks, shockwaves, KO blasts
-import * as THREE from 'three';
+import * as THREE from '../lib/three.module.min.js';
 
 const MAX = 2200;
 export class FX {

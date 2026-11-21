@@ -1,5 +1,5 @@
 // Block Brawl - procedural voxel character models (original homage designs)
-import * as THREE from 'three';
+import * as THREE from '../lib/three.module.min.js';
 
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;

@@ -1,5 +1,5 @@
 // Block Brawl v2 - three new stages: Sunny Loop Zone, Mushroom Castle, Neon Rooftops
-import * as THREE from 'three';
+import * as THREE from '../lib/three.module.min.js';
 import { STAGES, STAGE_ORDER, Blocks, stdMat, lamMat, glowMat, skyDome, islandMainBody, speckle, mulberry, hash2, fbm, pix } from './stages.js';
 
 let R = mulberry(5);

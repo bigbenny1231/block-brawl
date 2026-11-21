@@ -1,5 +1,5 @@
 // Block Brawl v2 - power-up items
-import * as THREE from 'three';
+import * as THREE from '../lib/three.module.min.js';
 
 export const ITEM_DEFS = {
   heal:    { name: 'HEART MELON', color: '#ff5a7a', w: 1.0, desc: 'Heals 40%' },

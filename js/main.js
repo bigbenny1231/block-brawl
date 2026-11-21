@@ -1,10 +1,10 @@
 // Block Brawl - main: renderer, screens, match flow, camera, HUD
-import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import * as THREE from '../lib/three.module.min.js';
+import { EffectComposer } from '../lib/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from '../lib/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from '../lib/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from '../lib/addons/postprocessing/OutputPass.js';
+import { RoomEnvironment } from '../lib/addons/environments/RoomEnvironment.js';
 import { CHARS, CHAR_ORDER, BASE_YAW, PALETTES, HATS } from './characters.js';
 import { STAGES, STAGE_ORDER, buildStage, BlockTextures } from './stages.js';
 import { FX } from './fx.js';
@@ -27,17 +27,30 @@ const nextFrame = () => new Promise(r => requestAnimationFrame(() => r()));
 
 // ------------------------------------------------------------------ renderer
 const canvas = $('#gl');
-const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'high-performance', stencil: false });
+const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+let renderer;
+try {
+  renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: isMobile ? 'default' : 'high-performance', stencil: false });
+} catch (e) {
+  window.__bbFail && window.__bbFail('3D graphics unavailable', "Your browser couldn't start WebGL 2 graphics. Close other tabs/apps and reload, or update your browser / iOS.", e && e.message);
+  throw e;
+}
+canvas.addEventListener('webglcontextlost', ev => {
+  ev.preventDefault();
+  try { window.__bbLS && window.__bbLS.set('bb-booting', 'lost'); } catch (_) {}
+  window.__bbReady = false;
+  window.__bbFail && window.__bbFail('Graphics reset', 'Your device ran out of graphics memory. Tap Low graphics to keep playing.');
+}, false);
 renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = isMobile ? THREE.PCFShadowMap : THREE.PCFSoftShadowMap;
 const QLIST = ['low', 'medium', 'high'];
 const QSET = {
   low: { pr: 1, shadow: 0, bloom: false, msaa: 0 },
-  medium: { pr: 1.5, shadow: 1024, bloom: true, msaa: 0 },
-  high: { pr: 2, shadow: 2048, bloom: true, msaa: 4 },
+  medium: { pr: 1.5, shadow: isMobile ? 512 : 1024, bloom: true, msaa: 0 },
+  high: { pr: 2, shadow: isMobile ? 1024 : 2048, bloom: true, msaa: isMobile ? 0 : 4 },
 };
-let quality = QLIST.includes(params.get('q')) ? params.get('q') : (isMobile ? 'medium' : 'high');
+let quality = QLIST.includes(params.get('q')) ? params.get('q') : (window.__bbSafe ? 'low' : (isMobile ? 'medium' : 'high'));
 let autoQ = !params.has('q');
 
 const world = new THREE.Scene();
@@ -51,7 +64,7 @@ world.environment = envTex; show.environment = envTex;
 let composer, renderPass, bloomPass;
 function buildComposer() {
   const q = QSET[quality];
-  const pr = Math.min(devicePixelRatio || 1, q.pr);
+  const pr = Math.min(devicePixelRatio || 1, q.pr, 2);
   renderer.setPixelRatio(pr);
   renderer.setSize(innerWidth, innerHeight, false);
   if (composer) { composer.renderTarget1.dispose(); composer.renderTarget2.dispose(); }
@@ -641,7 +654,7 @@ function applySettings() {
   sound.setMuted(!s.sound); sound.setMusic(s.music);
   input.haptics = s.haptics; game && (game.haptics = s.haptics);
   if (!params.has('q')) {
-    const want = s.quality === 'auto' ? (isMobile ? 'medium' : 'high') : s.quality;
+    const want = s.quality === 'auto' ? (window.__bbSafe ? 'low' : (isMobile ? 'medium' : 'high')) : s.quality;
     autoQ = s.quality === 'auto';
     if (want !== quality) { quality = want; buildComposer(); }
   }
@@ -1155,6 +1168,8 @@ async function boot() {
   setShowPuppet('blockjack', false);
   render(show, showCam);
   setLoad(1, 'READY');
+  window.__bbReady = true;
+  setTimeout(() => { if (window.__bbReady && window.__bbLS) window.__bbLS.del('bb-booting'); }, 8000);
   addEventListener('resize', onResize);
   addEventListener('orientationchange', () => setTimeout(onResize, 300));
   onResize();
@@ -1167,4 +1182,4 @@ async function boot() {
   else goTitle();
 }
 window.__bb = { stageThumbs, profile, goMenu, goSetup, goLocker, goShop, goQuests, goStats, goSettings, startClassic, goLadder, get classic() { return classic; }, get game() { return game; }, input, sound, startFight, goSelect, goTitle, showResults, sel, get mode() { return mode; }, get quality() { return quality; }, renderer };
-boot().catch(e => { console.error(e); $('#loadtxt').textContent = 'ERROR: ' + e.message; });
+boot().catch(e => { console.error(e); $('#loadtxt').textContent = 'ERROR: ' + e.message; window.__bbFail && window.__bbFail('Something went wrong', 'The game hit an error while loading. Try reloading, or tap Low graphics.', (e && (e.stack || e.message)) || String(e)); });

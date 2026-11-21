@@ -1,5 +1,5 @@
 // Block Brawl - fighter state machine, physics, moves, procedural animation
-import * as THREE from 'three';
+import * as THREE from '../lib/three.module.min.js';
 import { CHARS, buildChar, BASE_YAW } from './characters.js';
 import { SPECIALS, SPECIAL_POSES, VICTORY_POSES } from './specials.js';
 
