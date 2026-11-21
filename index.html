@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#07060c">
+<title>Block Brawl</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">{"imports":{"three":"./lib/three.module.min.js","three/addons/":"./lib/addons/"}}</script>
+</head>
+<body>
+<canvas id="gl"></canvas>
+<div id="flash"></div>
+<div id="vignette"></div>
+
+<div id="loading" class="screen show">
+  <div class="load-logo">BLOCK <span>BRAWL</span></div>
+  <div class="load-bar"><i id="loadfill"></i></div>
+  <div class="load-txt" id="loadtxt">FORGING THE ARENA…</div>
+</div>
+
+<div id="title" class="screen">
+  <div class="logo">
+    <div class="logo-top">BLOCK</div>
+    <div class="logo-bot">BRAWL</div>
+    <div class="logo-sub"><span>ULTIMATE CLASH</span></div>
+  </div>
+  <div class="press" id="pressStart">TAP TO START</div>
+  <div class="foot">An original fan-made platform fighter · Best in landscape</div>
+</div>
+
+<div id="select" class="screen">
+  <div class="sel-top">
+    <button class="back" id="selBack">‹</button>
+    <div class="sel-title">CHOOSE YOUR <b>FIGHTER</b></div>
+    <div class="opts">
+      <div class="opt"><label>RIVALS</label><div class="seg" id="optRivals"><button data-v="1">1</button><button data-v="2">2</button><button data-v="3">3</button></div></div>
+      <div class="opt"><label>CPU</label><div class="seg" id="optLevel"><button data-v="easy">EASY</button><button data-v="normal">NORM</button><button data-v="hard">HARD</button></div></div>
+    </div>
+  </div>
+  <div class="sel-info" id="selInfo">
+    <div class="ci-title" id="ciTitle"></div>
+    <div class="ci-name" id="ciName"></div>
+    <div class="ci-stats" id="ciStats"></div>
+    <div class="ci-moves" id="ciMoves"></div>
+  </div>
+  <div class="sel-bottom">
+    <div class="roster" id="roster"></div>
+    <div class="go-col">
+      <div class="stage-pick"><button id="stPrev">‹</button><div><small>STAGE</small><span id="stName"></span></div><button id="stNext">›</button></div>
+      <button class="fight-btn" id="fightBtn"><span>FIGHT!</span></button>
+    </div>
+  </div>
+</div>
+
+<div id="hud" class="screen">
+  <button id="pauseBtn" aria-label="Pause"><i></i><i></i></button>
+  <div id="cards"></div>
+  <div id="banner"></div>
+  <div id="toast"></div>
+</div>
+
+<div id="touch">
+  <div id="joyzone"></div>
+  <div id="joybase"><div id="joyknob"></div></div>
+  <div class="tbtn" data-btn="attack" id="bA"><span>A</span><small>ATTACK</small></div>
+  <div class="tbtn" data-btn="special" id="bB"><span>B</span><small>SPECIAL</small></div>
+  <div class="tbtn" data-btn="jump" id="bJ"><span>▲</span><small>JUMP</small></div>
+  <div class="tbtn" data-btn="shield" id="bS"><span>◆</span><small>SHIELD</small></div>
+</div>
+
+<div id="pause" class="screen modal">
+  <div class="panel">
+    <h2>PAUSED</h2>
+    <button id="pResume" class="big">RESUME</button>
+    <button id="pRestart">RESTART</button>
+    <button id="pQuit">QUIT TO MENU</button>
+    <div class="row"><button id="pGfx">GRAPHICS: HIGH</button><button id="pSnd">SOUND: ON</button></div>
+    <div class="help">Joystick: move · ▲ / flick up: jump · A + direction: strong attacks · B: special · B + up: recovery · Shield + direction: dodge</div>
+  </div>
+</div>
+
+<div id="results" class="screen">
+  <div class="res-left">
+    <div class="res-win">WINNER</div>
+    <div class="res-name" id="resName"></div>
+    <div class="res-sub" id="resSub"></div>
+  </div>
+  <div class="res-right">
+    <table id="resTable"></table>
+    <div class="res-btns"><button id="rAgain" class="big">REMATCH</button><button id="rSelect">FIGHTERS</button><button id="rTitle">TITLE</button></div>
+  </div>
+</div>
+
+<div id="rotate"><div class="phone"></div><div>ROTATE YOUR PHONE</div><small>Block Brawl plays in landscape</small></div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
