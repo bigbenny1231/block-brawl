@@ -6,7 +6,16 @@ export const KO_FX = { classic: { name: 'CLASSIC BEAM' }, fireworks: { name: 'FI
 export const POSES = { default: { name: 'SIGNATURE' }, cheer: { name: 'VICTORY CHEER' }, dance: { name: 'BLOCK DANCE' }, flex: { name: 'POWER FLEX' }, wave: { name: 'FRIENDLY WAVE' }, spin: { name: 'TORNADO SPIN' } };
 export const TITLES = { rookie: 'ROOKIE', brawler: 'BRAWLER', itemhoarder: 'ITEM HOARDER', speedster: 'SPEEDSTER', heavyhitter: 'HEAVY HITTER', champion: 'CHAMPION', bosslayer: 'BOSS SLAYER', legend: 'LEGEND', daily: 'DAILY GRINDER', collector: 'COLLECTOR', untouchable: 'UNTOUCHABLE' };
 
-export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper'];
+export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper', 'venomaw', 'gammoth'];
+// v3 starter cosmetics pack: a few of every cosmetic type, granted to new AND existing saves (once)
+export const STARTER_PACK = {
+  chars: ['venomaw', 'gammoth'],
+  skin: ['frost', 'crimson', 'gold', 'toxic', 'stonehide'],
+  hat: ['crown', 'shades', 'phones'],
+  ko: ['fireworks', 'lightning', 'voidburst'],
+  pose: ['cheer', 'dance', 'flex'],
+  title: ['brawler', 'speedster', 'legend'],
+};
 // account level rewards
 export const LEVEL_REWARDS = {
   2: [{ t: 'char', id: 'fizz' }, { t: 'hat', id: 'party' }],
@@ -69,12 +78,22 @@ function fresh() {
   };
 }
 export class Profile {
-  constructor() { this.d = fresh(); this.load(); this.ensureDaily(); }
+  constructor() { this.d = fresh(); this.load(); this.migrate(); this.ensureDaily(); }
+  // add new fighters + the starter cosmetics pack without touching existing progress
+  migrate() {
+    const own = this.d.own; let changed = false;
+    for (const [k, ids] of Object.entries(STARTER_PACK)) {
+      const arr = Array.isArray(own[k]) ? own[k] : (own[k] = []);
+      for (const id of ids) if (!arr.includes(id)) { arr.push(id); changed = true; }
+    }
+    if (!this.d.pack3) { this.d.pack3 = true; changed = true; }
+    if (changed) this.save();
+  }
   load() {
     try { const s = JSON.parse(localStorage.getItem(KEY) || 'null'); if (s && s.v === 2) { const f = fresh(); this.d = { ...f, ...s, own: { ...f.own, ...s.own }, stats: { ...f.stats, ...s.stats }, settings: { ...f.settings, ...s.settings }, rules: { ...f.rules, ...s.rules }, last: { ...f.last, ...s.last } }; } } catch (_) {}
   }
   save() { try { localStorage.setItem(KEY, JSON.stringify(this.d)); } catch (_) {} }
-  reset() { this.d = fresh(); this.ensureDaily(); this.save(); }
+  reset() { this.d = fresh(); this.migrate(); this.ensureDaily(); this.save(); }
   get lvl() { return this.d.lvl; }
   fighter(id) { return this.d.fighters[id] || (this.d.fighters[id] = { xp: 0, lvl: 1, games: 0, wins: 0, kos: 0 }); }
   owns(t, id) { if (t === 'skin') { const p = PALETTES[id]; if (p && p.only) return (this.d.own.skin || []).includes(id); } return (this.d.own[t === 'char' ? 'chars' : t] || []).includes(id); }
