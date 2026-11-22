@@ -552,3 +552,117 @@ export function buildChar(id, cos = {}) {
   }
   return rig;
 }
+
+// ================================================================ v3 roster: Venomaw + Gammoth (original homage designs)
+// ---------------------------------------------------------------- Venomaw (glossy symbiote brawler)
+function buildVenomaw(mats) {
+  const blk = '#161826', blk2 = '#22253a', sheen = '#2c3150', white = '#f4f4f4', mouth = '#3a0610', tongue = '#d0305a', teeth = '#ffffff';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) {
+    L.geo(new THREE.CapsuleGeometry(0.15, 0.48, 6, 12), 0, -0.3, 0, blk, { kind: 'metal' })
+      .geo(new THREE.CapsuleGeometry(0.12, 0.38, 6, 12), 0, -0.72, 0.02, blk2, { kind: 'metal' })
+      .box(0.24, 0.1, 0.36, 0, -0.95, 0.07, blk);
+    for (const s of [-0.07, 0, 0.07]) L.geo(new THREE.ConeGeometry(0.03, 0.1, 5), s, -0.97, 0.27, '#c8c8d0', { rx: Math.PI / 2 });
+  }
+  const torso = new P()
+    .geo(new THREE.CapsuleGeometry(0.2, 0.3, 6, 14), 0, 0.22, 0, blk, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.42, 18, 12), 0, 0.62, 0, blk, { kind: 'metal' })
+    .box(0.86, 0.34, 0.42, 0, 0.66, -0.02, blk, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.17, 12, 8), 0.2, 0.62, 0.22, sheen, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.17, 12, 8), -0.2, 0.62, 0.22, sheen, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.24, 12, 8), 0.4, 0.78, 0, blk2, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.24, 12, 8), -0.4, 0.78, 0, blk2, { kind: 'metal' });
+  // original emblem: three jagged white claw slashes across the chest
+  for (const [x, rz] of [[-0.14, 0.5], [0, 0.42], [0.14, 0.34]]) {
+    torso.box(0.06, 0.34, 0.03, x, 0.62, 0.39, white, { rz });
+    torso.box(0.04, 0.12, 0.03, x + 0.08, 0.42, 0.37, white, { rz: rz + 0.5 });
+  }
+  const head = new P();
+  const hg = new THREE.SphereGeometry(0.31, 18, 14); hg.scale(1.05, 1.08, 0.98);
+  head.geo(hg, 0, 0.3, 0, blk, { kind: 'metal' });
+  // big angled white eye patches
+  for (const sx of [1, -1]) {
+    const eg = new THREE.SphereGeometry(0.13, 14, 10); eg.scale(0.75, 1.25, 0.32);
+    head.geo(eg, sx * 0.13, 0.4, 0.27, white, { rz: sx * 0.62, kind: 'glow', glow: 1.15 });
+  }
+  // huge toothy grin
+  head.box(0.48, 0.16, 0.1, 0, 0.17, 0.25, mouth).box(0.4, 0.04, 0.08, 0, 0.11, 0.27, mouth);
+  for (let i = 0; i < 9; i++) {
+    const x = -0.22 + i * 0.055, curve = Math.abs(x) * 0.25;
+    head.geo(new THREE.ConeGeometry(0.024, 0.09, 4), x, 0.225 + curve, 0.3, teeth, { rx: Math.PI });
+    head.geo(new THREE.ConeGeometry(0.022, 0.08, 4), x + 0.027, 0.115 + curve, 0.3, teeth);
+  }
+  // long lolling tongue
+  head.box(0.1, 0.05, 0.14, 0.05, 0.13, 0.35, tongue).box(0.09, 0.14, 0.05, 0.07, 0.04, 0.42, tongue, { rz: -0.2 }).box(0.08, 0.12, 0.05, 0.1, -0.07, 0.43, tongue, { rz: 0.25, rx: 0.3 });
+  const mkArm = (A) => A.geo(new THREE.SphereGeometry(0.17, 12, 8), 0, 0, 0, blk2, { kind: 'metal' })
+    .geo(new THREE.CapsuleGeometry(0.13, 0.36, 6, 12), 0, -0.28, 0, blk, { kind: 'metal' })
+    .geo(new THREE.CapsuleGeometry(0.11, 0.3, 6, 12), 0, -0.64, 0.02, blk, { kind: 'metal' })
+    .geo(new THREE.SphereGeometry(0.13, 10, 8), 0, -0.86, 0.03, blk2, { kind: 'metal' });
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  for (const A of [armR, armL]) for (const s of [-0.07, 0, 0.07]) A.geo(new THREE.ConeGeometry(0.025, 0.18, 5), s, -1.0, 0.06, '#d8d8e0', { rx: Math.PI - 0.3 });
+  // writhing tendrils on the back (uses the cape slot so they sway)
+  const cape = new P();
+  for (const [x, rz, len] of [[-0.25, 0.35, 0.9], [0, 0.0, 1.1], [0.25, -0.35, 0.9], [-0.12, 0.15, 0.7], [0.12, -0.15, 0.7]]) {
+    cape.geo(new THREE.CylinderGeometry(0.035, 0.07, len, 6), x + Math.sin(rz) * len * 0.5, -len * 0.45, -0.05, blk2, { rz, kind: 'metal' });
+  }
+  return assemble({ h: 2.35, hipY: 1.0, neckY: 1.82, shY: 1.72, shX: 0.5, handY: -0.95, legX: 0.16, torso, head, armR, armL, legR, legL, cape, capeY: 1.75, capeZ: -0.3 }, mats);
+}
+
+// ---------------------------------------------------------------- Gammoth (gamma-charged brute)
+function buildGammoth(mats) {
+  const sk = '#5fae3a', skD = '#4a8f2c', skL = '#74c44a', shorts = '#5a2a8a', shortsD = '#43206a', hair = '#1c1a14';
+  const legR = new P(), legL = new P();
+  for (const L of [legR, legL]) {
+    L.geo(new THREE.CapsuleGeometry(0.24, 0.3, 6, 12), 0, -0.3, 0, shorts)
+      .geo(new THREE.CapsuleGeometry(0.21, 0.32, 6, 12), 0, -0.68, 0.02, sk)
+      .box(0.36, 0.14, 0.52, 0, -0.93, 0.09, skD);
+    // torn shorts hem
+    for (let i = 0; i < 5; i++) L.box(0.1, 0.1 + (i % 2) * 0.08, 0.1, Math.cos(i * 1.26) * 0.22, -0.5 - (i % 2) * 0.04, Math.sin(i * 1.26) * 0.22, shortsD, { rz: (i - 2) * 0.2 });
+  }
+  const torso = new P()
+    .geo(new THREE.CylinderGeometry(0.46, 0.4, 0.34, 16), 0, 0.02, 0, shorts)
+    .geo(new THREE.CapsuleGeometry(0.42, 0.25, 8, 16), 0, 0.5, 0, sk)
+    .box(1.36, 0.6, 0.72, 0, 0.98, -0.02, sk)
+    .geo(new THREE.SphereGeometry(0.34, 14, 10), 0.26, 0.92, 0.2, skL)
+    .geo(new THREE.SphereGeometry(0.34, 14, 10), -0.26, 0.92, 0.2, skL)
+    .geo(new THREE.SphereGeometry(0.36, 14, 10), 0.62, 1.12, 0, sk)
+    .geo(new THREE.SphereGeometry(0.36, 14, 10), -0.62, 1.12, 0, sk)
+    .geo(new THREE.SphereGeometry(0.3, 12, 8), 0, 1.28, -0.05, skD); // traps
+  for (let i = 0; i < 3; i++) torso.box(0.2, 0.12, 0.05, 0.11, 0.38 + i * 0.15, 0.4, skL).box(0.2, 0.12, 0.05, -0.11, 0.38 + i * 0.15, 0.4, skL);
+  torso.box(0.98, 0.1, 0.92, 0, 0.12, 0, shortsD);
+  const head = new P()
+    .box(0.52, 0.5, 0.5, 0, 0.22, 0.06, sk)
+    .box(0.58, 0.1, 0.12, 0, 0.36, 0.28, skD) // heavy brow
+    .box(0.12, 0.05, 0.02, 0.12, 0.29, 0.315, '#c8ff6a', { kind: 'glow', glow: 3 }).box(0.12, 0.05, 0.02, -0.12, 0.29, 0.315, '#c8ff6a', { kind: 'glow', glow: 3 })
+    .box(0.1, 0.12, 0.08, 0, 0.2, 0.33, skD)
+    .box(0.32, 0.08, 0.04, 0, 0.08, 0.31, '#f2f2e6').box(0.32, 0.015, 0.045, 0, 0.08, 0.312, '#2a3a20')
+    .box(0.6, 0.14, 0.4, 0, 0.0, 0.02, skD); // jaw
+  for (let i = 0; i < 9; i++) { const a = (i / 9) * Math.PI * 2; head.box(0.2, 0.16, 0.2, Math.cos(a) * 0.2, 0.5 + (i % 3) * 0.04, Math.sin(a) * 0.18 - 0.04, hair, { ry: a, rz: (i % 2 ? 0.3 : -0.3) }); }
+  head.box(0.54, 0.14, 0.4, 0, 0.5, -0.08, hair).box(0.16, 0.12, 0.08, 0.1, 0.46, 0.27, hair, { rz: 0.4 });
+  const mkArm = (A) => A.geo(new THREE.SphereGeometry(0.3, 12, 10), 0, -0.05, 0, sk)
+    .geo(new THREE.CapsuleGeometry(0.26, 0.36, 6, 12), 0, -0.4, 0, sk)
+    .geo(new THREE.CapsuleGeometry(0.24, 0.34, 6, 12), 0, -0.86, 0.03, skL)
+    .box(0.48, 0.42, 0.46, 0, -1.2, 0.04, skD) // fist
+    .box(0.5, 0.1, 0.2, 0, -1.08, 0.2, sk);
+  const armR = mkArm(new P()), armL = mkArm(new P());
+  return assemble({ h: 2.9, hipY: 1.05, neckY: 2.3, shY: 2.12, shX: 0.86, handY: -1.2, legX: 0.27, torso, head, armR, armL, legR, legL }, mats);
+}
+
+Object.assign(CHARS, {
+  venomaw: { id: 'venomaw', name: 'VENOMAW', title: 'The Hungry Symbiote', build: buildVenomaw, inspired: 'Venom',
+    color: '#9aa4ff', w: 0.8, h: 2.35, weight: 1.08, run: 9.8, air: 7.3, jump: 17.5, dj: 15.5, grav: 1.0, fall: 16.5, jumps: 1, reach: 1.22, power: 1.1, grabReach: 1.5,
+    stats: { power: 4, speed: 4, weight: 3, jump: 4 }, nSpecial: 'TENDRIL SNARE', upSpecial: 'SYMBIOTE SWING', dSpecial: 'SYMBIOTE LUNGE',
+    desc: 'Tendril whips, a long-range snare that reels foes in, wild claw flurries and a pouncing bite.', fx: ['#ffffff', '#6a70ff'],
+    keep: ['#f4f4f4', '#ffffff', '#3a0610', '#d0305a', '#c8c8d0', '#d8d8e0'] },
+  gammoth: { id: 'gammoth', name: 'GAMMOTH', title: 'The Gamma Juggernaut', build: buildGammoth, inspired: 'The Hulk',
+    color: '#6adc3a', w: 1.3, h: 2.9, weight: 1.55, run: 7.8, air: 5.7, jump: 17.2, dj: 14, grav: 1.15, fall: 18.5, jumps: 1, reach: 1.42, power: 1.34, rage: true,
+    stats: { power: 5, speed: 2, weight: 5, jump: 3 }, nSpecial: 'THUNDER CLAP', upSpecial: 'LEAP SMASH', dSpecial: 'GAMMA POUND',
+    desc: 'Gamma rage. Super armor, shockwave claps and huge leaps. Hits harder the more hurt he is.', fx: ['#d8ff8a', '#6adc3a'],
+    keep: ['#f2f2e6', '#2a3a20'] },
+});
+CHAR_ORDER.push('venomaw', 'gammoth');
+Object.assign(PALETTES, {
+  toxic: { name: 'TOXIC', only: 'venomaw', fn: c => { c.getHSL(hsl); c.setHSL(0.3, 0.8, 0.08 + hsl.l * 0.9); } },
+  stonehide: { name: 'STONEHIDE', only: 'gammoth', fn: c => { c.getHSL(hsl); if (hsl.h > 0.2 && hsl.h < 0.45) c.setHSL(0.6, 0.06, hsl.l * 0.95); } },
+});
+Object.assign(HAT_FIT, { gammoth: { k: 1.15 }, venomaw: { k: 1.2 } });

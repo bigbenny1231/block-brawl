@@ -185,7 +185,7 @@ function makePortraits() {
     p.rig.root.updateMatrixWorld(true);
     const hp = new THREE.Vector3(); p.rig.head.getWorldPosition(hp);
     const c = CHARS[id];
-    const headSize = id === 'malgore' ? 1.0 : id === 'gogo' ? 0.75 : 0.6;
+    const headSize = id === 'malgore' ? 1.0 : id === 'gogo' ? 0.75 : id === 'gammoth' ? 0.78 : id === 'venomaw' ? 0.7 : 0.6;
     hp.y += headSize * 0.25;
     const yaw = BASE_YAW - 0.55;
     const d = headSize * 3.4 + 0.4;
@@ -244,6 +244,20 @@ class Game {
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
     this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [] };
     this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
+    this.tendrils = [];
+  }
+  // symbiote tendril (Venomaw): one glossy line per owner, drawn from the hand to (ax, ay)
+  tendril(f, ax, ay) {
+    let t = this.tendrils.find(o => o.owner === f) || this.tendrils.find(o => !o.owner);
+    if (t) t.owner = f;
+    else {
+      const mesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.075, 1, 6), new THREE.MeshStandardMaterial({ color: '#1c1f33', roughness: 0.2, metalness: 0.6, emissive: '#151a40', emissiveIntensity: 0.6 }));
+      mesh.castShadow = true; world.add(mesh); t = { owner: f, mesh, t: 0 }; this.tendrils.push(t);
+    }
+    const hx = f.x + f.facing * f.w * 0.45, hy = f.y + f.h * 0.62;
+    const dx = ax - hx, dy = ay - hy, L = Math.max(0.05, Math.hypot(dx, dy));
+    const m = t.mesh; m.visible = true; m.position.set((ax + hx) / 2, (ay + hy) / 2, 0); m.scale.set(1, L, 1); m.rotation.set(0, 0, Math.atan2(dy, dx) - Math.PI / 2);
+    t.t = 2;
   }
   sfx(n, k) { sound.sfx(n, k); }
   shake(a) { this.shakeAmt = Math.max(this.shakeAmt, a); }
@@ -260,7 +274,7 @@ class Game {
     for (const d of this.decor) this.release(d);
     this.projectiles = []; this.decor = []; this.tags = [];
     this.items.clear(); this.items.configure(cfg.attract ? 'low' : (cfg.items || 'off'), cfg.itemList);
-    this.hazards = cfg.hazards !== false; this.timeLeft = cfg.time ? cfg.time * 60 : 0; this.webMesh.visible = false;
+    this.hazards = cfg.hazards !== false; this.timeLeft = cfg.time ? cfg.time * 60 : 0; this.webMesh.visible = false; for (const t of this.tendrils) { t.mesh.visible = false; t.t = 0; t.owner = null; }
     if (this.stage && this.stage.reset) this.stage.reset();
     if (this.stage) world.remove(this.stage.group);
     const st = this.stage = this.getStage(cfg.stage);
@@ -444,6 +458,7 @@ class Game {
       f.update(inp);
     });
     if (this.webT > 0 && --this.webT === 0) this.webMesh.visible = false;
+    for (const t of this.tendrils) if (t.t > 0 && --t.t === 0) t.mesh.visible = false;
     if (this.items) this.items.update(live);
     // projectiles
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
@@ -696,7 +711,7 @@ function showScreen(id) {
 function refreshCoins(bump) { document.querySelectorAll('.coinv').forEach(e => { e.textContent = PD().coins.toLocaleString(); if (bump) { e.parentElement.classList.remove('bump'); void e.parentElement.offsetWidth; e.parentElement.classList.add('bump'); } }); }
 document.querySelectorAll('[data-back]').forEach(b => b.addEventListener('click', () => { sound.sfx('back'); goBack(); }));
 const lockSvg = '<svg viewBox="0 0 24 24"><path d="M7 10V7a5 5 0 0 1 10 0v3h1.5v11h-13V10zm2.2 0h5.6V7a2.8 2.8 0 0 0-5.6 0z"/></svg>';
-const SWATCH = { default: 'linear-gradient(135deg,#ff6a3a,#3a8aff)', shadow: '#2a2830', gold: 'linear-gradient(135deg,#fff0a0,#d89a10)', frost: 'linear-gradient(135deg,#e0f4ff,#6ab0e0)', crimson: '#c01a2a', neon: 'linear-gradient(135deg,#3af0ff,#ff3ac8)', greenbro: '#2ab040', darkhog: 'linear-gradient(135deg,#1a1a24,#c01a1a)', symbiote: '#0c0c14', charged: 'linear-gradient(135deg,#40e0ff,#c0fff0)', wither: '#1a1a1a', netherite: '#3a3240' };
+const SWATCH = { default: 'linear-gradient(135deg,#ff6a3a,#3a8aff)', shadow: '#2a2830', gold: 'linear-gradient(135deg,#fff0a0,#d89a10)', frost: 'linear-gradient(135deg,#e0f4ff,#6ab0e0)', crimson: '#c01a2a', neon: 'linear-gradient(135deg,#3af0ff,#ff3ac8)', greenbro: '#2ab040', darkhog: 'linear-gradient(135deg,#1a1a24,#c01a1a)', symbiote: '#0c0c14', charged: 'linear-gradient(135deg,#40e0ff,#c0fff0)', wither: '#1a1a1a', netherite: '#3a3240', toxic: 'linear-gradient(135deg,#0c1a0c,#5aff3a)', stonehide: 'linear-gradient(135deg,#c8ccd4,#6a7080)' };
 const HAT_IC = { none: '∅', crown: '♛', tophat: '🎩', party: '▲', halo: '◯', horns: 'ᗑ', shades: '▬▬', phones: '∩', propeller: '✢' };
 const KO_IC = { classic: '➤', fireworks: '✺', lightning: 'ϟ', confetti: '❖', voidburst: '◉', pixels: '▦' };
 const POSE_IC = { default: '★', cheer: '\\o/', dance: '♪', flex: 'ᕦᕤ', wave: 'o/', spin: '↻' };
@@ -751,7 +766,7 @@ function refreshSelect(changed) {
   $('#ciTitle').textContent = c.title.toUpperCase(); $('#ciName').textContent = c.name;
   $('#ciLv').innerHTML = `MASTERY<b>LV ${f.lvl}</b> · ${f.wins} WINS · ${f.kos} KOS`;
   $('#ciStats').innerHTML = Object.entries(c.stats).map(([k, v]) => `<span>${k.toUpperCase()}</span><div class="bar"><i style="width:${v * 20}%"></i></div>`).join('');
-  $('#ciMoves').innerHTML = `${c.desc}<br>${c.nSpecial}<b>B</b> ${c.upSpecial}<b>↑B</b>` + (c.inspired ? `<div class="ci-insp">Tribute to ${c.inspired}</div>` : '');
+  $('#ciMoves').innerHTML = `${c.desc}<br>${c.nSpecial}<b>B</b> ${c.upSpecial}<b>↑B</b>` + (c.dSpecial ? ` ${c.dSpecial}<b>↓B</b>` : '') + (c.inspired ? `<div class="ci-insp">Tribute to ${c.inspired}</div>` : '');
   if (changed || !showPuppet || showPuppet.id !== sel.char) { setShowPuppet(sel.char, false, profile.cos(sel.char)); showPuppet.demoT = 0; }
 }
 

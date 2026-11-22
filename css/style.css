@@ -208,7 +208,7 @@ body.touchui #toast{top:auto;bottom:12px}
 .ci-moves b{display:inline-block;min-width:22px;padding:0 5px;border-radius:4px;background:#ffffff22;text-align:center;margin-left:6px;font-family:"Arial Black",sans-serif}
 .ci-insp{font-size:9px;opacity:.55;letter-spacing:.08em;margin-top:2px}
 .sel-bottom{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;gap:12px;padding:0 var(--sr) max(10px,env(safe-area-inset-bottom)) var(--sl);background:linear-gradient(0deg,rgba(0,0,0,.8),rgba(0,0,0,0))}
-.roster{display:grid;grid-template-columns:repeat(6,auto);gap:6px 7px;padding-top:24px}
+.roster{display:grid;grid-template-columns:repeat(7,auto);gap:6px 7px;padding-top:24px}
 .card{position:relative;width:min(7.6vw,15vh,78px);height:min(8.6vw,17vh,88px);border-radius:9px;overflow:hidden;transform:skewX(-8deg);background:linear-gradient(180deg,#2c2546,#120f1c);border:2px solid #ffffff25;transition:transform .15s cubic-bezier(.2,1.6,.4,1),border-color .15s,box-shadow .15s;animation:cardIn .4s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes cardIn{0%{opacity:0;transform:skewX(-8deg) translateY(20px)}100%{opacity:1}}
 .card::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(255,255,255,.18),transparent 35%);pointer-events:none}

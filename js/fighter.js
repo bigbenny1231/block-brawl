@@ -1,7 +1,7 @@
 // Block Brawl - fighter state machine, physics, moves, procedural animation
 import * as THREE from '../lib/three.module.min.js';
 import { CHARS, buildChar, BASE_YAW } from './characters.js';
-import { SPECIALS, SPECIAL_POSES, VICTORY_POSES } from './specials.js';
+import { SPECIALS, SPECIAL_POSES, VICTORY_POSES, MOVE_MODS, SPECIAL_LAND, SIGNATURE_VICTORY } from './specials.js';
 
 export const DT = 1 / 60;
 export const PCOLORS = ['#ff3b4e', '#3b8bff', '#ffc93b', '#3bdc6e'];
@@ -14,7 +14,7 @@ const smooth = t => t * t * (3 - 2 * t);
 
 function moveset(c) {
   const s = c.reach, h = c.h, w = c.w * 0.5;
-  return {
+  const m = {
     jab: { t: 15, hb: [{ f0: 3, f1: 5, x: w + 0.45 * s, y: 0.55 * h, r: 0.6 * s, dmg: 3.5, kb: 4.5, g: 0.35, a: 40 }], anim: 'jab', sfx: 'swing' },
     ftilt: { t: 32, hb: [{ f0: 9, f1: 13, x: w + 0.75 * s, y: 0.5 * h, r: 0.8 * s, dmg: 12, kb: 7, g: 1.8, a: 38 }], anim: 'fsmash', sfx: 'heavy', lunge: 4, strong: true },
     utilt: { t: 30, hb: [{ f0: 7, f1: 13, x: 0.25 * s, y: h + 0.15 * s, r: 0.85 * s, dmg: 10, kb: 7, g: 1.55, a: 88 }], anim: 'usmash', sfx: 'heavy', strong: true },
@@ -25,6 +25,8 @@ function moveset(c) {
     uair: { t: 26, air: 1, hb: [{ f0: 6, f1: 11, x: 0.1, y: h + 0.1 * s, r: 0.85 * s, dmg: 9, kb: 6, g: 1.3, a: 85 }], anim: 'uair', sfx: 'swing', land: 6 },
     dair: { t: 36, air: 1, hb: [{ f0: 12, f1: 17, x: 0.1, y: -0.05, r: 0.8 * s + w * 0.4, dmg: 12, kb: 6, g: 1.3, a: -80 }], anim: 'dair', sfx: 'heavy', land: 12 },
   };
+  if (MOVE_MODS[c.id]) MOVE_MODS[c.id](m, s, h, w);
+  return m;
 }
 
 const N0 = { aRx: 0, aRz: 0, aLx: 0, aLz: 0, hx: 0, hy: 0, lLx: 0, lRx: 0, crouch: 0, spinY: 0, hd: 0 };
@@ -72,7 +74,7 @@ export class Fighter {
   get w() { return this.c.w * this.size; }
   get weight() { return this.c.weight * this.size * (this.buffs.giant ? 1.25 : 1) * (this.boss ? 1.6 : 1); }
   get spd() { return this.buffs.speed ? 1.45 : 1; }
-  get powerMul() { return (this.buffs.power ? 1.5 : 1) * (this.buffs.giant ? 1.3 : 1) * (this.boss ? 1.25 : 1); }
+  get powerMul() { return (this.buffs.power ? 1.5 : 1) * (this.buffs.giant ? 1.3 : 1) * (this.boss ? 1.25 : 1) * (this.c.rage ? 1 + Math.min(0.25, this.pct / 600) : 1); }
   get dead() { return this.state === 'dead'; }
   get out() { return this.stocks <= 0 && this.state === 'dead'; }
   reset(x, y, facing) {
@@ -100,7 +102,7 @@ export class Fighter {
     if (this.dropT > 0) this.dropT--;
     if (this.shieldStun > 0) this.shieldStun--;
     this.stateT++;
-    this.noGrav = false;
+    this.noGrav = false; this.armor = false;
     this.tickBuffs();
     if (this.state !== 'shield') this.shieldHP = Math.min(100, this.shieldHP + 0.14);
     const f = this.stateT;
@@ -288,6 +290,9 @@ export class Fighter {
     if (m.lunge && f === m.hb[0].f0 - 2) this.vx = this.facing * m.lunge * 2;
     if (f === m.hb[0].f0 - 1) g.sfx(m.sfx);
     const sz = this.size;
+    if (m.armor && f >= m.armor[0] && f <= m.armor[1]) this.armor = true;
+    if (m.rehit && f % m.rehit === 0) this.hitIds.clear();
+    if (m.onFrame) m.onFrame(this, f, g);
     for (const hb of m.hb) if (f >= hb.f0 && f <= hb.f1) g.hitCheck(this, sz === 1 ? hb : { ...hb, r: hb.r * sz }, this.x + hb.x * sz * this.facing, this.y + hb.y * sz, hb.radial ? 0 : this.facing);
     if (f >= m.t) this.setState(this.grounded ? 'idle' : 'air');
   }
@@ -295,7 +300,9 @@ export class Fighter {
   // ------------------------------------------------------------ specials
   doSpecial(inp) {
     const up = inp.y > 0.5 && inp.y > Math.abs(inp.x) * 0.7;
+    const down = !up && this.c.dSpecial && inp.y < -0.5 && -inp.y > Math.abs(inp.x) * 0.7;
     if (up) { if (this.upUsed) return; this.upUsed = true; this.spec = 'up'; }
+    else if (down) { this.spec = 'down'; }
     else { this.spec = 'n'; if (Math.abs(inp.x) > 0.3) this.facing = Math.sign(inp.x); }
     this.specData = { dirx: inp.x, diry: inp.y, startGround: this.grounded };
     this.hitIds.clear(); this.setState('special');
@@ -307,10 +314,10 @@ export class Fighter {
     const g = this.game, f = this.stateT;
     if (!this.grabbed) {
       if (f >= 4 && f <= 8) {
-        const gx = this.x + this.facing * (this.w * 0.5 + 0.45), gy = this.y + this.h * 0.5;
+        const gx = this.x + this.facing * (this.w * 0.5 + 0.45 * (this.c.grabReach || 1)), gy = this.y + this.h * 0.5;
         for (const t of g.fighters) {
           if (t === this || t.state === 'dead' || t.invuln > 0 || t.state === 'ledge' || t.state === 'respawn') continue;
-          if (Math.abs(t.x - gx) < 0.55 + t.w * 0.5 && gy > t.y - 0.3 && gy < t.y + t.h + 0.3) { this.grabbed = t; t.setState('grabbed'); t.grabber = this; t.vx = t.vy = t.kbx = t.kby = 0; g.sfx('land'); this.stateT = 0; break; }
+          if (Math.abs(t.x - gx) < 0.55 * (this.c.grabReach || 1) + t.w * 0.5 && gy > t.y - 0.3 && gy < t.y + t.h + 0.3) { this.grabbed = t; t.setState('grabbed'); t.grabber = this; t.vx = t.vy = t.kbx = t.kby = 0; g.sfx('land'); this.stateT = 0; break; }
         }
       }
       if (!this.grabbed && f >= 24) this.setState('idle');
@@ -542,6 +549,7 @@ export class Fighter {
     this.grounded = true; this.plat = p; this.y = p.y; this.vy = 0; this.kby = 0;
     this.jumps = this.c.jumps; this.upUsed = false; this.airDodged = false; this.rushUsed = false; this.blinkUsed = false; this.fastFall = false;
     this.anim.squash = 0.78;
+    if (this.state === 'special' && SPECIAL_LAND[this.c.id] && SPECIAL_LAND[this.c.id](this, g)) return;
     if (this.state === 'special' && this.c.id === 'malgore' && this.spec === 'n' && this.specData.phase === 'plunge') { this.malgoreShockwave(); this.lag = 24; this.setState('landing'); return; }
     if (this.state === 'attack' && this.move && this.move.air) { this.lag = this.move.land; this.setState('landing'); }
     else if (this.state === 'helpless') { this.lag = 12; this.setState('landing'); }
@@ -576,6 +584,12 @@ export class Fighter {
     const d = dir || Math.sign(this.x - hx) || (att ? att.facing : 1);
     let spd = (hb.kb * (hb.weak ? 1 : (0.6 + 0.4 * pow)) + hb.g * this.pct * 0.155 * (hb.weak ? 0.2 : 1)) / this.weight;
     if (hb.web) spd = 3;
+    if (this.armor && spd < 17) {
+      // super armor: take the damage, ignore the flinch
+      this.hitFlash = 6; if (att) { this.lastHitter = att; this.lastHitT = g.frame; }
+      g.fx.burst(hx, hy, 0.3, '#c8ff6a', 12, 6, 0.4, 0.3); g.fx.ring(this.x, this.y + this.h * 0.5, 0.3, 1.8, 0.2, '#9aff5a'); g.sfx('armor'); g.hitstop(4);
+      return { spd: 0, dmg, kx: 0, ky: 0 };
+    }
     let a = hb.a * Math.PI / 180;
     let kx = Math.cos(a) * spd * d, ky = Math.sin(a) * spd;
     if (this.grounded && ky < 0) { if (spd > 10) { ky = -ky * 0.7; } else ky = 0; }
@@ -733,7 +747,7 @@ export class Fighter {
   }
   specialPose(P, f) {
     const id = this.c.id, up = this.spec === 'up', S = this.specData;
-    if (SPECIAL_POSES[id]) return SPECIAL_POSES[id](P, f, up, S);
+    if (SPECIAL_POSES[id]) return SPECIAL_POSES[id](P, f, up, S, this.spec);
     if (id === 'blockjack') { if (!up) this.phasePose(P, ANIMS.throw[0], ANIMS.throw[1], f, 11, 15, 30); else { P.aRx = -3.0; P.aLx = -3.0; P.lLx = -0.4; P.crouch = f < 6 ? 0.6 : 0; } }
     else if (id === 'bristle') { if (!up) { P.hx = 0.75; P.crouch = 0.3; P.aRx = 0.6; P.aLx = -0.4; P.aRz = -0.3; const s = Math.sin(f * 0.9); P.lLx = s; P.lRx = -s; P.hd = -0.4; } else { P.aRz = -1.5; P.aLz = 1.4; P.aRx = -0.3; P.lLx = -0.3; } }
     else if (id === 'voidwalker') { P.aRz = -0.9; P.aLz = 0.9; P.aRx = -0.6; P.aLx = -0.6; P.hd = -0.3; P.hx = 0.1; }
@@ -746,6 +760,7 @@ export class Fighter {
   victoryPose(P, time) {
     const id = this.c.id, t = time;
     if (this.cos.pose && VICTORY_POSES[this.cos.pose]) return VICTORY_POSES[this.cos.pose](P, t);
+    if (SIGNATURE_VICTORY[id]) return SIGNATURE_VICTORY[id](P, t);
     if (!['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore'].includes(id)) return VICTORY_POSES[{ bolt: 'wave', pipper: 'cheer', webline: 'flex', fizz: 'spin', rattle: 'dance', ironclad: 'flex' }[id]](P, t);
     if (id === 'blockjack') { P.aRx = -3.0 + Math.sin(t * 4) * 0.3; P.aLz = 0.6; P.hd = -0.2; P.hy = Math.sin(t * 2) * 0.3; }
     else if (id === 'bristle') { P.aRx = -2.6; P.aLx = -2.6; P.aRz = -0.9; P.aLz = 0.9; P.hx = -0.2 + Math.sin(t * 6) * 0.05; P.crouch = 0.2 + Math.sin(t * 6) * 0.1; }

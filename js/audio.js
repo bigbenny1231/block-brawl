@@ -80,6 +80,11 @@ export class Sound {
       case 'spring': this.tone('square', 200, 1200, 0.22, 0.14); this.tone('sine', 400, 1600, 0.2, 0.1, 0.03); break;
       case 'fireball': this.tone('square', 700, 300, 0.1, 0.12); this.noise(0.12, 0.12, 'bandpass', 1200, 600, 1.5); break;
       case 'coin': this.tone('square', 988, 988, 0.06, 0.09); this.tone('square', 1319, 1319, 0.2, 0.09, 0.06); break;
+      case 'armor': this.tone('square', 220, 160, 0.12, 0.14); this.noise(0.1, 0.18, 'bandpass', 700, 300, 1.5); break;
+      case 'clap': this.noise(0.35, 0.8, 'bandpass', 2200, 400, 0.8); this.tone('sine', 140, 40, 0.4, 0.5); this.noise(0.6, 0.3, 'lowpass', 1200, 80, 0.8, 0.04); break;
+      case 'roar': this.tone('sawtooth', 95, 70, 0.45, 0.2); this.tone('sawtooth', 142, 100, 0.45, 0.12); this.noise(0.45, 0.2, 'bandpass', 500, 300, 1.2); break;
+      case 'tendril': this.noise(0.16, 0.22, 'bandpass', 900, 300, 2); this.tone('sine', 180, 90, 0.14, 0.08); break;
+      case 'chomp': this.noise(0.08, 0.35, 'bandpass', 1500, 600, 2); this.tone('square', 260, 110, 0.08, 0.12); break;
       case 'web': this.noise(0.14, 0.2, 'highpass', 3000, 1500, 1); this.tone('sine', 1800, 600, 0.1, 0.06); break;
       case 'item': [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.05)); break;
       case 'pickup': this.tone('square', 520, 1040, 0.12, 0.12); this.tone('triangle', 1040, 1560, 0.15, 0.08, 0.06); break;

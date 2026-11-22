@@ -102,6 +102,14 @@ export class AI {
         if (id === 'malgore' && f.grounded && adx < 3.2 && Math.abs(dy) < 1.5) { inp.specialP = true; return inp; }
         if ((id === 'rattle' || id === 'pipper' || id === 'webline') && adx > 3 && adx < 12 && Math.abs(dy) < 1.8) { f.facing = dir; inp.x = dir * 0.3; inp.specialP = true; return inp; }
         if (id === 'bolt' && f.grounded && adx > 3 && adx < 9 && Math.abs(dy) < 1 && Math.abs(f.x + dir * 7) < edge + 1) { f.facing = dir; inp.x = dir * 0.5; inp.specialP = true; return inp; }
+        if (id === 'venomaw') {
+          if (adx > 2.5 && adx < 7 && Math.abs(dy) < 1.4) { f.facing = dir; inp.x = dir * 0.3; inp.specialP = true; return inp; }
+          if (f.grounded && adx > 1.6 && adx < 4.5 && Math.abs(dy) < 1 && Math.abs(f.x + dir * 4) < edge) { f.facing = dir; inp.y = -1; inp.specialP = true; return inp; }
+        }
+        if (id === 'gammoth') {
+          if (adx < 3.6 && Math.abs(dy) < 1.5 && f.grounded) { f.facing = dir; if (Math.random() < 0.55) inp.x = dir * 0.3; else inp.y = -1; inp.specialP = true; return inp; }
+          if (!f.grounded && adx < 1.6 && dy < -0.8) { inp.y = -1; inp.specialP = true; return inp; }
+        }
         if ((id === 'fizz' || id === 'ironclad') && f.grounded && adx < (id === 'fizz' ? 2.4 : 2.8) && Math.abs(dy) < 1.5) { f.facing = dir; inp.specialP = true; return inp; }
       }
       if (adx < reach * 0.8 && Math.abs(dy) < 1 && f.grounded && (t.state === 'shield' || Math.random() < 0.08)) { f.facing = dir; inp.attackP = true; inp.shieldH = true; return inp;
