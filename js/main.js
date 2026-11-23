@@ -242,7 +242,7 @@ class Game {
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
-    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [] };
+    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [], rivetBolt: [] };
     this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
     this.tendrils = [];
   }
@@ -377,11 +377,11 @@ class Game {
       p = this.take('fireball', makeFireball);
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.6, vx: owner.facing * 11, vy: -2, grav: 30, bounce: 8.5, life: 95, r: 0.3, spin: -owner.facing * 14,
         hb: { dmg: 5, kb: 4, g: 0.5, a: 35, r: 0.3 }, color: '#ff8020', breakColor: '#ff6010', glowTrail: true });
-    } else if (type === 'spiritBlade' || type === 'heart' || type === 'soulFire') {
+    } else if (type === 'spiritBlade' || type === 'heart' || type === 'soulFire' || type === 'rivetBolt') {
       const { speed, rise = 0, dmg, size, y } = opts;
       const [core, aura] = owner.c.fx;
       const radius = size * owner.size;
-      p = this.take(type, () => makeDemonShot(type));
+      p = this.take(type, () => makeEnergyShot(type));
       p.mesh.scale.setScalar(radius);
       p.mesh.children[0].material.color.set(core).multiplyScalar(1.7);
       p.mesh.children[1].material.color.set(aura);
@@ -595,7 +595,7 @@ function makeFireball() {
   const o = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36, 1), new THREE.MeshBasicMaterial({ color: '#ff5010', transparent: true, opacity: 0.45, depthWrite: false })); g.add(o);
   return g;
 }
-function makeDemonShot(type) {
+function makeEnergyShot(type) {
   const group = new THREE.Group();
   const core = new THREE.MeshBasicMaterial({ toneMapped: false });
   const aura = new THREE.MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.48, depthWrite: false });
@@ -610,6 +610,9 @@ function makeDemonShot(type) {
     geometry = new THREE.ExtrudeGeometry(heart, { depth: 0.30, bevelEnabled: false }).translate(0, 0, -0.15);
   } else if (type === 'soulFire') {
     geometry = new THREE.IcosahedronGeometry(1, 1).scale(1.2, 0.84, 0.84);
+  } else if (type === 'rivetBolt') {
+    const profile = [[0, -1.1], [0.62, -1.1], [0.62, -0.68], [0.31, -0.68], [0.31, 0.68], [0, 1.24]];
+    geometry = new THREE.LatheGeometry(profile.map(([r, y]) => new THREE.Vector2(r, y)), 6).rotateZ(-Math.PI / 2);
   } else {
     geometry = new THREE.OctahedronGeometry(1).scale(1.6, 0.38, 0.42);
   }

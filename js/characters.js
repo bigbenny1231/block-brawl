@@ -1,6 +1,7 @@
 // Block Brawl - procedural voxel character models (original homage designs)
 import * as THREE from '../lib/three.module.min.js';
 import { DEMON_HUNTER_IDS, makeDemonHunters } from './demon-hunters.js';
+import { WORKSHOP_IDS, makeWorkshopFighters } from './workshop-fighters.js';
 
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;
@@ -675,4 +676,12 @@ Object.assign(HAT_FIT, {
   mira: { y: 0.57, z: 0, front: 0.23 },
   zoey: { y: 0.56, z: 0, front: 0.22 },
   'gwi-ma': { y: 0.96, z: 0.02, front: 0.44, k: 1.60 },
+});
+
+Object.assign(CHARS, makeWorkshopFighters(P, assemble));
+CHAR_ORDER.push(...WORKSHOP_IDS);
+Object.assign(HAT_FIT, {
+  cinderback: { y: 0.55, z: 0.02, front: 0.44, k: 1.48 },
+  skiff: { y: 0.54, z: 0.02, front: 0.36 },
+  rivet: { y: 0.52, z: 0, front: 0.29 },
 });

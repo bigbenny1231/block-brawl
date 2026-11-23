@@ -49,6 +49,22 @@ const specials = {
     up: { start: 10, end: 42, rise: 19.5, steer: 0.63, r: 1.4, dmg: 12, reach: 0 },
     victory: 'flex',
   },
+  cinderback: {
+    neutral: { kind: 'flame', start: 14, end: 43, active: 17, r: 1.12, dmg: 11, reach: 1.47, y: 0.65 },
+    up: { start: 8, end: 38, rise: 20.4, steer: 0.70, r: 1.29, dmg: 11, reach: 0.1, sfx: 'fire' },
+    victory: 'flex',
+  },
+  skiff: {
+    neutral: { kind: 'dash', start: 6, end: 28, active: 12, r: 0.72, dmg: 8, reach: 0.53, y: 0.37, speed: 17.5, sfx: 'rush' },
+    up: { start: 4, end: 38, rise: 16.5, steer: 1.12, r: 0.80, dmg: 6, reach: 0, jet: { speed: 14.5, frames: 15 }, sfx: 'rev' },
+    victory: 'spin',
+  },
+  rivet: {
+    neutral: { kind: 'projectile', start: 10, end: 31, armAim: -0.20, sfx: 'blaster',
+      shots: [{ kind: 'rivetBolt', speed: 24, rise: -0.25, dmg: 8, size: 0.32, y: 0.56 }] },
+    up: { start: 7, end: 35, rise: 21.3, steer: 0.8, r: 1.08, dmg: 9, reach: 0.30, sfx: 'spring' },
+    victory: 'wave',
+  },
 };
 
 function neutralSpecial(ft, f, X, m) {
@@ -57,23 +73,28 @@ function neutralSpecial(ft, f, X, m) {
   const dir = ft.facing;
   const x = ft.x + (m.reach ?? 0) * ft.size * dir;
   const [light, accent] = ft.c.fx;
-  if (m.kind === 'dash' && f >= m.start && f < m.start + 9) {
+  const active = f >= m.start && f < m.start + (m.active ?? (m.kind === 'dash' ? 9 : 5));
+  if (m.kind === 'dash' && active) {
     ft.vx = dir * (ft.grounded ? m.speed : m.speed * 0.7);
     if (f % 2 === 0) game.fx.trail(ft.x - dir * 0.28, y, accent, 0.7);
   } else if (!ft.grounded) {
     X.drift(0.63);
   }
   if (f === m.start) {
-    game.sfx(m.kind === 'projectile' ? 'throw' : m.kind === 'burst' ? 'boom' : 'heavy');
+    game.sfx(m.sfx ?? (m.kind === 'projectile' ? 'throw' : m.kind === 'burst' ? 'boom' : m.kind === 'flame' ? 'fire' : 'heavy'));
     game.fx.burst(x, y, 0.2, light, 13, 4.5, 0.34, 0.27);
     if (m.kind === 'projectile') {
       for (const shot of m.shots) game.spawnProjectile(ft, shot.kind, shot);
-    } else {
+    } else if (m.kind !== 'flame') {
       const spread = m.kind === 'burst';
       game.fx.ring(x, y, 0.2, m.r * ft.size * 2, 0.32, accent, spread && m.y < 0.3);
     }
   }
-  if (m.kind !== 'projectile' && f >= m.start && f < m.start + (m.kind === 'dash' ? 9 : 5)) {
+  if (m.kind === 'flame' && active && (f - m.start) % 2 === 0) {
+    game.fx.burst(x, y, 0.15, accent, 5, 7, 0.31, 0.33 * ft.size, { dir: [dir, 0.12], bright: 1.55 });
+    game.fx.fire(x - dir * 0.5, y, 0.12, 2, ft.size * 0.77);
+  }
+  if (m.kind !== 'projectile' && active) {
     const radial = m.kind === 'burst';
     X.H({ r: m.r * ft.size, dmg: m.dmg, kb: 5 + m.dmg * 0.19, g: 0.95, a: radial ? 65 : 43, radial }, x, y, radial ? 0 : dir);
   }
@@ -88,11 +109,15 @@ function recoverySpecial(ft, f, X, m) {
   }
   if (f === m.start) {
     X.launchUp(m.rise);
-    game.sfx('spin');
+    game.sfx(m.sfx ?? 'spin');
     game.fx.ring(ft.x, ft.y + 0.3, 0.1, 2.5 * ft.size, 0.35, ft.c.fx[1], true);
     game.fx.burst(ft.x, ft.y + 0.35, 0.2, ft.c.fx[0], 18, 5, 0.4, 0.28, { up: 2 });
   }
   if (f > m.start) X.drift(m.steer);
+  if (m.jet && f >= m.start && f < m.start + m.jet.frames) {
+    ft.vy = Math.max(m.jet.speed, ft.vy);
+    if (f % 2 === 0) game.fx.burst(ft.x, ft.y + 0.1, 0.15, ft.c.fx[1], 5, 7, 0.3, 0.25, { dir: [0, -1] });
+  }
   if (f >= m.start && f < m.start + 10) {
     const x = ft.x + ft.facing * m.reach * ft.size, y = ft.y + ft.h * 0.59;
     X.H({ r: m.r * ft.size, dmg: m.dmg, kb: 7.1, g: 0.96, a: 83 }, x, y, 0);
@@ -108,20 +133,22 @@ function specialPose(P, f, up, move) {
     P.aLx = f < move.start ? 0.34 : -1.38;
     P.lLx = -0.48;
     P.lRx = 0.34;
+    if (move.jet) { P.aRx = -0.65; P.aLx = -0.65; P.lLx = 0.18; P.lRx = 0.18; }
     if (move.spin && f >= move.start) P.spinY = Math.PI * 2 * Math.min(1, (f - move.start) / 17);
     return;
   }
   const charging = f < move.start;
-  P.aRx = charging ? -0.65 : -1.55;
+  P.aRx = charging ? -0.65 : (move.armAim ?? -1.55);
   P.aLx = move.kind === 'burst' ? P.aRx : -0.40;
   P.aLz = move.kind === 'burst' ? 0.6 : 0.18;
   P.hy = charging ? 0.27 : -0.3;
   P.hx = move.kind === 'dash' && !charging ? 0.58 : 0.12;
   P.crouch = charging || move.y < 0.3 ? 0.26 : 0;
   if (move.kind === 'strike') P.aRz = charging ? -0.65 : 0.75;
+  if (move.kind === 'flame') { P.aRx = 0.46; P.aLx = 0.42; P.hd = charging ? -0.35 : 0.31; P.hx = charging ? -0.12 : 0.47; }
 }
 
-export function registerDemonHunterMoves(handlers, poses, victory, victoryPoses) {
+export function registerRosterMoves(handlers, poses, victory, victoryPoses) {
   for (const [id, moves] of Object.entries(specials)) {
     handlers[id] = (ft, inp, f, up, state, X) => {
       if (up) recoverySpecial(ft, f, X, moves.up);
@@ -132,7 +159,7 @@ export function registerDemonHunterMoves(handlers, poses, victory, victoryPoses)
   }
 }
 
-export function canUseDemonHunterSpecial(fighter, target, stageEdge) {
+export function canUseRosterSpecial(fighter, target, stageEdge) {
   const move = specials[fighter.id]?.neutral;
   if (!move) return false;
   const dx = target.x - fighter.x;
@@ -142,7 +169,7 @@ export function canUseDemonHunterSpecial(fighter, target, stageEdge) {
   if (move.kind === 'projectile') return distance > 2.4 && distance < 10;
   const reach = ((move.reach ?? 0) + move.r) * fighter.size + target.w / 2;
   if (move.kind === 'dash') {
-    const travel = move.speed * 0.15;
+    const travel = move.speed * (move.active ?? 9) / 60;
     return fighter.grounded && distance < reach + travel && Math.abs(fighter.x + Math.sign(dx) * travel) < stageEdge - 0.2;
   }
   return distance < reach;
