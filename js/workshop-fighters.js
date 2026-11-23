@@ -1,4 +1,4 @@
-// Original fighters for the shared procedural voxel rig.
+// Workshop roster models for the shared procedural voxel rig.
 const METAL = { kind: 'metal' };
 const GLOW = { kind: 'glow', glow: 1.65 };
 
@@ -112,52 +112,69 @@ function buildSkiff(P, assemble, mats, h) {
     legX: 0.287, torso, head, armR: arm(), armL: arm(), legR: pod(), legL: pod() }, mats);
 }
 
-function buildRivet(P, assemble, mats, h) {
-  const coat = '#6c7842', ochre = '#cea24a', iron = '#63616c', ink = '#292c42';
-  const skin = '#ba805f', hair = '#e5d5ac', glove = '#a94f3e', lamp = '#adff95';
+// Robotnik's dark suit and swept hair from the first live-action Sonic film.
+function buildRobotnik(P, assemble, mats, h) {
+  const skin = '#d6a180', skinShade = '#bd876e', hair = '#271c24', hairLight = '#62404a';
+  const coat = '#191923', lapel = '#3e3d4c', shirt = '#2b2b37', black = '#101017';
+  const lens = '#22252e', frame = '#504d5d', red = '#f74857';
+  const hipY = 0.87, neckY = 1.68;
   const torso = new P()
-    .box(0.80, 0.25, 0.62, 0, 0.14, -0.032, ink)
-    .box(0.86, 0.37, 0.56, 0, 0.36, -0.033, iron, METAL)
-    .box(0.76, 0.22, 0.16, 0, 0.409, 0.296, ochre)
-    .box(0.47, 0.36, 0.36, 0.035, 0.66, 0.001, coat)
-    .box(0.18, 0.13, 0.055, 0.016, 0.656, 0.187, '#e9dcbb')
-    .box(0.176, 0.091, 0.22, 0.033, 0.846, 0.023, skin)
-    .box(0.22, 0.43, 0.22, -0.35, 0.62, -0.22, ochre, { rz: -0.21 })
-    .box(0.05, 0.22, 0.114, -0.478, 0.642, -0.22, lamp, GLOW)
-    .box(0.266, 0.13, 0.062, 0.016, 0.393, 0.404, ink);
-  for (let i = -1; i <= 1; i++) torso.box(0.045, 0.051, 0.022, i * 0.074 + 0.02, 0.39, 0.443, lamp, GLOW);
+    .box(0.51, 0.71, 0.31, 0, 0.37, 0, coat)
+    .box(0.60, 0.21, 0.32, 0, 0.656, -0.004, coat)
+    .box(0.43, 0.18, 0.29, 0, 0.055, 0.014, coat)
+    .box(0.20, 0.53, 0.054, 0, 0.437, 0.158, shirt)
+    .box(0.048, 0.40, 0.04, 0, 0.483, 0.198, black)
+    .box(0.058, 0.073, 0.046, 0, 0.709, 0.196, lapel, { rz: Math.PI / 4 })
+    .box(0.18, 0.13, 0.20, 0, 0.762, 0.027, skin)
+    .box(0.19, 0.058, 0.063, 0, 0.74, 0.16, lapel);
+  for (const side of [-1, 1]) {
+    torso.box(0.109, 0.299, 0.061, side * 0.124, 0.606, 0.167, lapel, { rz: side * -0.42 })
+      .box(0.145, 0.045, 0.045, side * 0.183, 0.26, 0.166, lapel, { rz: side * 0.10 });
+  }
+  for (let i = 0; i < 3; i++) torso.box(0.027, 0.028, 0.023, -0.046, 0.166 + i * 0.083, 0.193, '#51505c');
 
   const head = new P()
-    .box(0.442, 0.413, 0.40, 0, 0.226, 0, skin)
-    .box(0.48, 0.20, 0.44, 0.01, 0.436, -0.03, hair, { rz: -0.12 })
-    .box(0.36, 0.17, 0.17, 0.132, 0.47, -0.19, hair, { rz: 0.30 })
-    .box(0.17, 0.31, 0.14, 0.27, 0.287, -0.21, hair, { rz: 0.28 })
-    .box(0.46, 0.059, 0.42, 0, 0.32, 0.019, ink)
-    .box(0.13, 0.054, 0.029, 0.008, 0.191, 0.21, '#9a5449')
-    .box(0.082, 0.075, 0.074, -0.016, 0.234, 0.219, skin);
+    .box(0.43, 0.39, 0.40, 0, 0.276, 0, skin)
+    .box(0.36, 0.15, 0.37, 0, 0.092, 0.016, skin)
+    .box(0.30, 0.08, 0.33, 0, 0.033, 0.037, skinShade)
+    .box(0.10, 0.114, 0.107, 0, 0.213, 0.219, skin, { rx: 0.17 })
+    .box(0.128, 0.026, 0.035, 0, 0.084, 0.212, '#8b514d')
+    .box(0.446, 0.114, 0.428, 0, 0.452, -0.027, hair)
+    .box(0.419, 0.205, 0.138, 0, 0.355, -0.151, hair)
+    .box(0.37, 0.134, 0.225, 0.024, 0.500, 0.057, hair, { rz: -0.162, rx: -0.18 })
+    .box(0.215, 0.105, 0.166, 0.06, 0.553, 0.054, hairLight, { rz: -0.19, rx: -0.20 })
+    .box(0.390, 0.021, 0.023, 0, 0.312, 0.221, frame);
   for (const side of [-1, 1]) {
-    head.box(0.183, 0.125, 0.074, side * 0.114, 0.328, 0.231, ochre)
-      .box(0.135, 0.085, 0.020, side * 0.114, 0.335, 0.272, '#4b6b62')
-      .box(0.029, 0.045, 0.013, side * 0.114 + 0.023, 0.345, 0.29, lamp, GLOW);
+    head.box(0.071, 0.111, 0.117, side * 0.223, 0.248, -0.025, skinShade)
+      .box(0.049, 0.103, 0.181, side * 0.204, 0.387, -0.031, hair)
+      .box(0.178, 0.079, 0.046, side * 0.109, 0.303, 0.224, frame)
+      .box(0.151, 0.058, 0.019, side * 0.109, 0.304, 0.25, lens)
+      .box(0.072, 0.012, 0.012, side * 0.115, 0.32, 0.263, '#697383', { rz: -0.1 })
+      .box(0.061, 0.035, 0.105, side * 0.209, 0.308, 0.173, frame);
+    head.box(0.124, 0.041, 0.041, side * 0.067, 0.152, 0.237, hair, { rz: side * -0.20 })
+      .box(0.068, 0.035, 0.039, side * 0.142, 0.151, 0.229, hair, { rz: side * 0.42 })
+      .box(0.041, 0.032, 0.037, side * 0.174, 0.174, 0.215, hair, { rz: side * 0.83 });
   }
   const arm = () => new P()
-    .box(0.212, 0.26, 0.235, 0, -0.015, 0, coat)
-    .box(0.18, 0.408, 0.21, 0, -0.244, 0.084, iron, { ...METAL, rx: -0.28 })
-    .box(0.238, 0.121, 0.24, 0, -0.474, 0.128, glove);
-  const weapon = new P()
-    .box(0.27, 0.24, 0.58, 0, 0.06, 0.342, ink)
-    .box(0.34, 0.094, 0.48, 0, 0.193, 0.313, ochre)
-    .box(0.20, 0.175, 0.17, 0, 0.068, 0.689, iron, METAL)
-    .box(0.113, 0.092, 0.035, 0, 0.068, 0.784, lamp, GLOW)
-    .box(0.12, 0.151, 0.22, 0, 0.092, 0.077, glove);
+    .box(0.19, 0.55, 0.22, 0, -0.21, 0, coat)
+    .box(0.198, 0.08, 0.226, 0, -0.461, 0.005, lapel)
+    .box(0.182, 0.16, 0.205, 0, -0.553, 0.047, black);
+  const remote = new P()
+    .box(0.13, 0.074, 0.24, -0.009, 0.018, 0.114, frame, METAL)
+    .box(0.105, 0.029, 0.185, -0.009, 0.066, 0.117, coat)
+    .box(0.045, 0.025, 0.052, -0.01, 0.082, 0.16, red, GLOW);
   const leg = () => new P()
-    .box(0.30, 0.44, 0.28, 0, -0.15, -0.058, ink, { rx: -0.43 })
-    .box(0.31, 0.204, 0.26, 0, -0.368, -0.173, ochre)
-    .box(0.24, 0.42, 0.23, 0, -0.55, -0.084, iron, { ...METAL, rx: 0.47 })
-    .box(0.325, 0.166, 0.50, 0, -0.750, 0.025, ink)
-    .box(0.21, 0.055, 0.084, 0, -0.738, 0.288, lamp, GLOW);
-  return assemble({ h, hipY: 0.835, neckY: 1.735, shX: 0.375, shY: 1.53, handY: -0.45,
-    legX: 0.283, torso, head, armR: arm(), armL: arm(), legR: leg(), legL: leg(), weapon }, mats);
+    .box(0.224, 0.82, 0.23, 0, -0.411, 0.006, shirt)
+    .box(0.235, 0.13, 0.36, 0, -0.795, 0.061, black)
+    .box(0.24, 0.038, 0.368, 0, -0.851, 0.062, lapel);
+  const coatTails = new P();
+  for (const side of [-1, 1]) {
+    coatTails.box(0.237, 0.49, 0.077, side * 0.132, -0.203, 0, coat, { rz: side * 0.12 })
+      .box(0.048, 0.433, 0.078, side * 0.22, -0.196, 0.014, lapel, { rz: side * 0.14 });
+  }
+  return assemble({ h, hipY, neckY, shX: 0.366, shY: 1.558, handY: -0.548,
+    legX: 0.134, torso, head, armR: arm(), armL: arm(), legR: leg(), legL: leg(), weapon: remote,
+    cape: coatTails, capeY: 1.08, capeZ: -0.18 }, mats);
 }
 
 const WORKSHOP_FIGHTERS = [
@@ -173,12 +190,13 @@ const WORKSHOP_FIGHTERS = [
     stats: { power: 2, speed: 5, weight: 2, jump: 5 }, nSpecial: 'CROSSWIND DASH', upSpecial: 'LIFT JETS',
     desc: 'A daring hatchling in a scrap-built hovercraft. Skims through rivals and banks sharply in the air.',
     fx: ['#d8fffa', '#5fe3dc'], keep: ['#fce9b7', '#dda573'] },
-  { id: 'rivet', name: 'RIVET', title: 'Workshop Inventor', model: buildRivet,
-    color: '#d2c66f', w: 0.90, h: 2.28, weight: 1.10, run: 8.15, air: 6.15, jump: 16.3, dj: 15.0,
-    grav: 1.02, fall: 16.4, jumps: 1, reach: 1.03, power: 1.04, portraitSize: 0.72,
-    stats: { power: 3, speed: 3, weight: 4, jump: 3 }, nSpecial: 'RIVET SHOT', upSpecial: 'PISTON LAUNCH',
-    desc: 'An inventor piloting a two-legged workshop rig. Fires steel fasteners and springs off the ground on pistons.',
-    fx: ['#deffc4', '#9cda74'], keep: ['#ba805f', '#e5d5ac', '#9a5449'] },
+  // Keep the old slot ID so saved selection, mastery, and cosmetics carry forward.
+  { id: 'rivet', name: 'DR. ROBOTNIK', title: 'Drone Commander', model: buildRobotnik, inspired: 'Sonic the Hedgehog (2020 film)',
+    color: '#ff6572', w: 0.69, h: 2.28, weight: 0.99, run: 8.55, air: 7.0, jump: 16.7, dj: 15.1,
+    grav: 1.02, fall: 16.4, jumps: 1, reach: 1.03, power: 1.04, portraitSize: 0.62,
+    stats: { power: 3, speed: 3, weight: 3, jump: 4 }, nSpecial: 'DRONE DISPATCH', upSpecial: 'THRUSTER ASSIST',
+    desc: 'A fast-talking inventor in a black coat. Dispatches a pursuit drone and calls in a burst of thrust to recover.',
+    fx: ['#ff8995', '#e92747'], keep: ['#d6a180', '#bd876e', '#271c24', '#62404a', '#22252e', '#8b514d'] },
 ];
 
 export const WORKSHOP_IDS = WORKSHOP_FIGHTERS.map(c => c.id);

@@ -683,5 +683,5 @@ CHAR_ORDER.push(...WORKSHOP_IDS);
 Object.assign(HAT_FIT, {
   cinderback: { y: 0.55, z: 0.02, front: 0.44, k: 1.48 },
   skiff: { y: 0.54, z: 0.02, front: 0.36 },
-  rivet: { y: 0.52, z: 0, front: 0.29 },
+  rivet: { y: 0.625, z: -0.02, front: 0.27 },
 });
