@@ -50,13 +50,19 @@ const specials = {
     victory: 'flex',
   },
   cinderback: {
-    neutral: { kind: 'flame', start: 14, end: 43, active: 17, r: 1.12, dmg: 11, reach: 1.47, y: 0.65 },
-    up: { start: 8, end: 38, rise: 20.4, steer: 0.70, r: 1.29, dmg: 11, reach: 0.1, sfx: 'fire' },
-    victory: 'flex',
+    neutral: { kind: 'strike', start: 12, end: 35, active: 7, r: 1.06, dmg: 13, reach: 1.41, y: 0.54, sfx: 'swing' },
+    up: { start: 7, end: 36, rise: 21.0, steer: 0.75, r: 1.12, dmg: 9, reach: 0.34 },
+    victory: 'wave',
   },
   skiff: {
-    neutral: { kind: 'dash', start: 6, end: 28, active: 12, r: 0.72, dmg: 8, reach: 0.53, y: 0.37, speed: 17.5, sfx: 'rush' },
-    up: { start: 4, end: 38, rise: 16.5, steer: 1.12, r: 0.80, dmg: 6, reach: 0, jet: { speed: 14.5, frames: 15 }, sfx: 'rev' },
+    neutral: { kind: 'burst', start: 8, end: 30, active: 6, r: 1.39, dmg: 9, y: 0.25, sfx: 'heavy' },
+    up: { start: 5, end: 34, rise: 22.2, steer: 0.89, r: 0.91, dmg: 6, reach: 0.13, sfx: 'spring' },
+    victory: 'cheer',
+  },
+  'hip-hop': {
+    neutral: { kind: 'dash', start: 6, end: 29, active: 12, r: 0.84, dmg: 9, reach: 0.58, y: 0.37, speed: 18.5, sfx: 'rush' },
+    up: { start: 5, end: 35, rise: 19.2, steer: 1.04, r: 0.9, dmg: 6, reach: 0.18,
+      jet: { speed: 14.4, frames: 9 }, sfx: 'rev' },
     victory: 'spin',
   },
   rivet: {
@@ -82,18 +88,14 @@ function neutralSpecial(ft, f, X, m) {
     X.drift(0.63);
   }
   if (f === m.start) {
-    game.sfx(m.sfx ?? (m.kind === 'projectile' ? 'throw' : m.kind === 'burst' ? 'boom' : m.kind === 'flame' ? 'fire' : 'heavy'));
+    game.sfx(m.sfx ?? (m.kind === 'projectile' ? 'throw' : m.kind === 'burst' ? 'boom' : 'heavy'));
     game.fx.burst(x, y, 0.2, light, 13, 4.5, 0.34, 0.27);
     if (m.kind === 'projectile') {
       for (const shot of m.shots) game.spawnProjectile(ft, shot.kind, shot);
-    } else if (m.kind !== 'flame') {
+    } else {
       const spread = m.kind === 'burst';
       game.fx.ring(x, y, 0.2, m.r * ft.size * 2, 0.32, accent, spread && m.y < 0.3);
     }
-  }
-  if (m.kind === 'flame' && active && (f - m.start) % 2 === 0) {
-    game.fx.burst(x, y, 0.15, accent, 5, 7, 0.31, 0.33 * ft.size, { dir: [dir, 0.12], bright: 1.55 });
-    game.fx.fire(x - dir * 0.5, y, 0.12, 2, ft.size * 0.77);
   }
   if (m.kind !== 'projectile' && active) {
     const radial = m.kind === 'burst';
@@ -146,7 +148,6 @@ function specialPose(P, f, up, move) {
   P.hx = move.kind === 'dash' && !charging ? 0.58 : 0.12;
   P.crouch = charging || move.y < 0.3 ? 0.26 : 0;
   if (move.kind === 'strike') P.aRz = charging ? -0.65 : 0.75;
-  if (move.kind === 'flame') { P.aRx = 0.46; P.aLx = 0.42; P.hd = charging ? -0.35 : 0.31; P.hx = charging ? -0.12 : 0.47; }
 }
 
 export function registerRosterMoves(handlers, poses, victory, victoryPoses) {

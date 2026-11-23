@@ -546,7 +546,7 @@ export function buildChar(id, cos = {}) {
       const fit = HAT_FIT[id] || {};
       const top = fit.y ?? box.max.y, cz = fit.z ?? (box.min.z + box.max.z) / 2;
       const k = fit.k ?? Math.max(0.75, Math.min(1.6, (box.max.x - box.min.x) / 0.62));
-      hat.scale.setScalar(k); hat.position.set(0, top - 0.02, cz);
+      hat.scale.setScalar(k); hat.position.set(fit.x ?? 0, top - 0.02, cz);
       if (cos.hat === 'shades' || cos.hat === 'phones') hat.position.y = box.min.y + (top - box.min.y) * 0.62 + 0.16 * k;
       if (cos.hat === 'shades') hat.position.z = (fit.front ?? box.max.z) - 0.01;
       rig.head.add(hat); rig.hat = hat;
@@ -681,7 +681,8 @@ Object.assign(HAT_FIT, {
 Object.assign(CHARS, makeWorkshopFighters(P, assemble));
 CHAR_ORDER.push(...WORKSHOP_IDS);
 Object.assign(HAT_FIT, {
-  cinderback: { y: 0.55, z: 0.02, front: 0.44, k: 1.48 },
-  skiff: { y: 0.54, z: 0.02, front: 0.36 },
+  cinderback: { y: 0.76, z: -0.015, front: 0.35, k: 1.35 },
+  skiff: { y: 0.69, z: 0, front: 0.275, k: 0.85 },
+  'hip-hop': { x: 0.24, y: 0.443, z: -0.103, front: 0.085, k: 0.72 },
   rivet: { y: 0.625, z: -0.02, front: 0.27 },
 });
