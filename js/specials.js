@@ -1,4 +1,6 @@
 // Block Brawl v2 - special moves for the v2 roster
+import { registerDemonHunterMoves } from './demon-hunter-moves.js';
+
 const approach = (v, t, s) => (v < t ? Math.min(t, v + s) : Math.max(t, v - s));
 export const SPECIALS = {
   fizz(ft, inp, f, up, S, X) {
@@ -305,3 +307,5 @@ export const SIGNATURE_VICTORY = {
   venomaw(P, t) { P.crouch = 0.35; P.hx = 0.35 + Math.sin(t * 3) * 0.08; P.aRz = -0.9; P.aLz = 0.9; P.aRx = -0.7 + Math.sin(t * 5) * 0.25; P.aLx = -0.7 - Math.sin(t * 5) * 0.25; P.hy = Math.sin(t * 1.7) * 0.35; },
   gammoth(P, t) { const s = Math.sin(t * 7); P.aRx = -1.4 + s * 0.5; P.aLx = -1.4 - s * 0.5; P.aRz = -0.2; P.aLz = 0.2; P.hd = -0.5; P.crouch = 0.2 + Math.abs(s) * 0.1; },
 };
+
+registerDemonHunterMoves(SPECIALS, SPECIAL_POSES, SIGNATURE_VICTORY, VICTORY_POSES);

@@ -1,5 +1,6 @@
 // Block Brawl - procedural voxel character models (original homage designs)
 import * as THREE from '../lib/three.module.min.js';
+import { DEMON_HUNTER_IDS, makeDemonHunters } from './demon-hunters.js';
 
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;
@@ -666,3 +667,12 @@ Object.assign(PALETTES, {
   stonehide: { name: 'STONEHIDE', only: 'gammoth', fn: c => { c.getHSL(hsl); if (hsl.h > 0.2 && hsl.h < 0.45) c.setHSL(0.6, 0.06, hsl.l * 0.95); } },
 });
 Object.assign(HAT_FIT, { gammoth: { k: 1.15 }, venomaw: { k: 1.2 } });
+
+Object.assign(CHARS, makeDemonHunters(P, assemble));
+CHAR_ORDER.push(...DEMON_HUNTER_IDS);
+Object.assign(HAT_FIT, {
+  rumi: { y: 0.60, z: 0, front: 0.21 },
+  mira: { y: 0.57, z: 0, front: 0.23 },
+  zoey: { y: 0.56, z: 0, front: 0.22 },
+  'gwi-ma': { y: 0.96, z: 0.02, front: 0.44, k: 1.60 },
+});

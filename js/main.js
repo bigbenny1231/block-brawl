@@ -185,7 +185,7 @@ function makePortraits() {
     p.rig.root.updateMatrixWorld(true);
     const hp = new THREE.Vector3(); p.rig.head.getWorldPosition(hp);
     const c = CHARS[id];
-    const headSize = id === 'malgore' ? 1.0 : id === 'gogo' ? 0.75 : id === 'gammoth' ? 0.78 : id === 'venomaw' ? 0.7 : 0.6;
+    const headSize = c.portraitSize ?? ({ malgore: 1.0, gogo: 0.75, gammoth: 0.78, venomaw: 0.7 }[id] || 0.6);
     hp.y += headSize * 0.25;
     const yaw = BASE_YAW - 0.55;
     const d = headSize * 3.4 + 0.4;
@@ -242,7 +242,7 @@ class Game {
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
-    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [] };
+    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [] };
     this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
     this.tendrils = [];
   }
@@ -377,6 +377,21 @@ class Game {
       p = this.take('fireball', makeFireball);
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.6, vx: owner.facing * 11, vy: -2, grav: 30, bounce: 8.5, life: 95, r: 0.3, spin: -owner.facing * 14,
         hb: { dmg: 5, kb: 4, g: 0.5, a: 35, r: 0.3 }, color: '#ff8020', breakColor: '#ff6010', glowTrail: true });
+    } else if (type === 'spiritBlade' || type === 'heart' || type === 'soulFire') {
+      const { speed, rise = 0, dmg, size, y } = opts;
+      const [core, aura] = owner.c.fx;
+      const radius = size * owner.size;
+      p = this.take(type, () => makeDemonShot(type));
+      p.mesh.scale.setScalar(radius);
+      p.mesh.children[0].material.color.set(core).multiplyScalar(1.7);
+      p.mesh.children[1].material.color.set(aura);
+      Object.assign(p, {
+        x: owner.x + owner.facing * (owner.w / 2 + radius), y: owner.y + owner.h * y,
+        vx: owner.facing * speed, vy: rise, grav: 0, life: 42, r: radius,
+        aim: type !== 'heart', spin: 0, glowTrail: true, color: aura, breakColor: core,
+        hb: { dmg, kb: 4 + dmg * 0.24, g: 0.55 + dmg * 0.035, a: 39, r: radius },
+      });
+      opts = null;
     } else if (type === 'web') {
       p = this.take('web', makeWebBall);
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.65, vx: owner.facing * 18, vy: 0, grav: 0, life: 40, r: 0.4, spin: 6,
@@ -579,6 +594,29 @@ function makeFireball() {
   g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.26, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color(3, 1.2, 0.25) })));
   const o = new THREE.Mesh(new THREE.IcosahedronGeometry(0.36, 1), new THREE.MeshBasicMaterial({ color: '#ff5010', transparent: true, opacity: 0.45, depthWrite: false })); g.add(o);
   return g;
+}
+function makeDemonShot(type) {
+  const group = new THREE.Group();
+  const core = new THREE.MeshBasicMaterial({ toneMapped: false });
+  const aura = new THREE.MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.48, depthWrite: false });
+  let geometry;
+  if (type === 'heart') {
+    const heart = new THREE.Shape();
+    heart.moveTo(0, 0.44);
+    heart.lineTo(0.43, 0.79); heart.lineTo(0.85, 0.72); heart.lineTo(1, 0.24);
+    heart.lineTo(0.69, -0.18); heart.lineTo(0, -0.87);
+    heart.lineTo(-0.69, -0.18); heart.lineTo(-1, 0.24); heart.lineTo(-0.85, 0.72); heart.lineTo(-0.43, 0.79);
+    heart.closePath();
+    geometry = new THREE.ExtrudeGeometry(heart, { depth: 0.30, bevelEnabled: false }).translate(0, 0, -0.15);
+  } else if (type === 'soulFire') {
+    geometry = new THREE.IcosahedronGeometry(1, 1).scale(1.2, 0.84, 0.84);
+  } else {
+    geometry = new THREE.OctahedronGeometry(1).scale(1.6, 0.38, 0.42);
+  }
+  const shell = new THREE.Mesh(geometry, aura);
+  shell.scale.setScalar(1.21);
+  group.add(new THREE.Mesh(geometry, core), shell);
+  return group;
 }
 function makeWebBall() {
   const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color: '#f8f8ff' });

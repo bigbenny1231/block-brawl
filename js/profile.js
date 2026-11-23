@@ -1,15 +1,16 @@
 // Block Brawl v2 - player profile, progression, unlocks, shop, daily challenges (localStorage)
 import { CHARS, CHAR_ORDER, PALETTES, HATS } from './characters.js';
+import { DEMON_HUNTER_IDS } from './demon-hunters.js';
 
 const KEY = 'bb.profile.v2';
 export const KO_FX = { classic: { name: 'CLASSIC BEAM' }, fireworks: { name: 'FIREWORKS' }, lightning: { name: 'THUNDERCLAP' }, confetti: { name: 'CONFETTI' }, voidburst: { name: 'VOID BURST' }, pixels: { name: 'PIXEL SHATTER' } };
 export const POSES = { default: { name: 'SIGNATURE' }, cheer: { name: 'VICTORY CHEER' }, dance: { name: 'BLOCK DANCE' }, flex: { name: 'POWER FLEX' }, wave: { name: 'FRIENDLY WAVE' }, spin: { name: 'TORNADO SPIN' } };
 export const TITLES = { rookie: 'ROOKIE', brawler: 'BRAWLER', itemhoarder: 'ITEM HOARDER', speedster: 'SPEEDSTER', heavyhitter: 'HEAVY HITTER', champion: 'CHAMPION', bosslayer: 'BOSS SLAYER', legend: 'LEGEND', daily: 'DAILY GRINDER', collector: 'COLLECTOR', untouchable: 'UNTOUCHABLE' };
 
-export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper', 'venomaw', 'gammoth'];
+export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper', 'venomaw', 'gammoth', ...DEMON_HUNTER_IDS];
 // v3 starter cosmetics pack: a few of every cosmetic type, granted to new AND existing saves (once)
 export const STARTER_PACK = {
-  chars: ['venomaw', 'gammoth'],
+  chars: ['venomaw', 'gammoth', ...DEMON_HUNTER_IDS],
   skin: ['frost', 'crimson', 'gold', 'toxic', 'stonehide'],
   hat: ['crown', 'shades', 'phones'],
   ko: ['fireworks', 'lightning', 'voidburst'],
