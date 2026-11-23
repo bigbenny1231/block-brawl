@@ -1,4 +1,6 @@
 // Block Brawl - CPU opponents
+import { canUseDemonHunterSpecial } from './demon-hunter-moves.js';
+
 const LEVELS = {
   easy: { react: 22, aggr: 0.35, shield: 0.05, special: 0.15, recover: 0.75, mistake: 0.25, strong: 0.25 },
   normal: { react: 12, aggr: 0.6, shield: 0.22, special: 0.22, recover: 0.95, mistake: 0.1, strong: 0.45 },
@@ -96,6 +98,7 @@ export class AI {
       // specials at range
       if (Math.random() < L.special) {
         const id = f.c.id;
+        if (canUseDemonHunterSpecial(f, t, edge)) { f.facing = dir; inp.specialP = true; return inp; }
         if ((id === 'blockjack' || id === 'gogo') && adx > 3 && adx < 11 && Math.abs(dy) < 2) { inp.x = dir * 0.5; inp.specialP = true; f.facing = dir; return inp; }
         if (id === 'bristle' && f.grounded && adx > 2 && adx < 8 && Math.abs(dy) < 1 && Math.abs(f.x + dir * 6) < edge + 1) { inp.x = dir * 0.5; inp.specialP = true; return inp; }
         if (id === 'voidwalker' && adx > 3 && adx < 7 && Math.abs(dy) < 1.5 && Math.abs(t.x) < edge - 0.5) { inp.x = dir; inp.specialP = true; return inp; }
