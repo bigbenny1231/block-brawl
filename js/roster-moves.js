@@ -60,10 +60,11 @@ const specials = {
     victory: 'spin',
   },
   rivet: {
-    neutral: { kind: 'projectile', start: 10, end: 31, armAim: -0.20, sfx: 'blaster',
-      shots: [{ kind: 'rivetBolt', speed: 24, rise: -0.25, dmg: 8, size: 0.32, y: 0.56 }] },
-    up: { start: 7, end: 35, rise: 21.3, steer: 0.8, r: 1.08, dmg: 9, reach: 0.30, sfx: 'spring' },
-    victory: 'wave',
+    neutral: { kind: 'projectile', start: 11, end: 32, armAim: -1.05, sfx: 'blaster',
+      shots: [{ kind: 'pursuitDrone', speed: 22, dmg: 8, size: 0.38, y: 0.56 }] },
+    up: { start: 6, end: 36, rise: 17.8, steer: 0.94, r: 0.9, dmg: 7, reach: 0.12,
+      jet: { speed: 15.2, frames: 10 }, sfx: 'fire' },
+    victory: 'dance',
   },
 };
 
