@@ -3,6 +3,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { DEMON_HUNTER_IDS, makeDemonHunters } from './demon-hunters.js';
 import { WORKSHOP_IDS, makeWorkshopFighters } from './workshop-fighters.js';
 import { SHELL_IDS, SHELL_PALETTES, makeShellFighters } from './shell-kings.js';
+import { HOLIDAY_FIGHTER_IDS, makeHolidayFighters } from './holiday-fighters.js';
 
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;
@@ -694,4 +695,14 @@ Object.assign(PALETTES, SHELL_PALETTES);
 Object.assign(HAT_FIT, {
   brimshell: { y: 0.66, z: 0.02, front: 0.36, k: 1.4 },
   nebulo: { y: 0.53, z: 0.02, front: 0.3, k: 1.0 },
+});
+
+Object.assign(CHARS, makeHolidayFighters(P, assemble));
+CHAR_ORDER.push(...HOLIDAY_FIGHTER_IDS);
+Object.assign(HAT_FIT, {
+  grinch: { y: 0.88, front: 0.34, k: 1.06 },
+  santa: { y: 0.89, front: 0.30, k: 1.12 },
+  ghostface: { y: 0.66, front: 0.38 },
+  'peter-venkman': { front: 0.27 },
+  'ray-stantz': { front: 0.27 },
 });
