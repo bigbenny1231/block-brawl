@@ -242,7 +242,8 @@ class Game {
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
-    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [], pursuitDrone: [] };
+    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [], pursuitDrone: [], paintGlob: [], doodle: [], puddle: [] };
+    this.puddles = [];
     this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
     this.tendrils = [];
   }
@@ -272,7 +273,8 @@ class Game {
     for (const t of this.tags) world.remove(t);
     for (const p of this.projectiles) this.release(p);
     for (const d of this.decor) this.release(d);
-    this.projectiles = []; this.decor = []; this.tags = [];
+    for (const d of this.puddles) this.release(d);
+    this.projectiles = []; this.decor = []; this.tags = []; this.puddles = [];
     this.items.clear(); this.items.configure(cfg.attract ? 'low' : (cfg.items || 'off'), cfg.itemList);
     this.hazards = cfg.hazards !== false; this.timeLeft = cfg.time ? cfg.time * 60 : 0; this.webMesh.visible = false; for (const t of this.tendrils) { t.mesh.visible = false; t.t = 0; t.owner = null; }
     if (this.stage && this.stage.reset) this.stage.reset();
@@ -392,6 +394,19 @@ class Game {
         hb: { dmg, kb: 4 + dmg * 0.24, g: 0.55 + dmg * 0.035, a: 39, r: radius },
       });
       opts = null;
+    } else if (type === 'paintGlob') {
+      // Nebulo: sticky star paint that arcs, slows on hit and puddles where it lands
+      p = this.take('paintGlob', makePaintGlob);
+      Object.assign(p, { x: owner.x + owner.facing * (owner.w / 2 + 0.35), y: owner.y + owner.h * 0.72, vx: owner.facing * 12.5 + owner.vx * 0.2, vy: 6.5, grav: 26, life: 80, r: 0.34 * owner.size,
+        spin: -owner.facing * 9, hb: { dmg: 6, kb: 4.2, g: 0.55, a: 45, r: 0.34, paint: 120 }, color: '#ff6fd8', breakColor: '#7fe8ff', glowTrail: true, puddle: true });
+      p.mesh.scale.setScalar(owner.size);
+    } else if (type === 'doodle') {
+      // Nebulo: a painted comet critter that bounds along the floor
+      p = this.take('doodle', makeDoodle);
+      const baseY = owner.y + 0.42 * owner.size;
+      Object.assign(p, { x: owner.x + owner.facing * (owner.w / 2 + 0.5), y: baseY, baseY, vx: owner.facing * 9.5, vy: 0, grav: 0, life: 75, r: 0.5 * owner.size, spin: 0,
+        hb: { dmg: 8, kb: 6.2, g: 0.85, a: 50, r: 0.5, paint: 150 }, color: '#ffd76a', breakColor: '#ff6fd8', glowTrail: true, hop: true });
+      p.mesh.scale.set(owner.size * owner.facing, owner.size, owner.size);
     } else if (type === 'web') {
       p = this.take('web', makeWebBall);
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.65, vx: owner.facing * 18, vy: 0, grav: 0, life: 40, r: 0.4, spin: 6,
@@ -433,6 +448,35 @@ class Game {
     const dx = ax - hx, dy = ay - hy, L = Math.hypot(dx, dy);
     const m = this.webMesh; m.visible = true; m.position.set((ax + hx) / 2, (ay + hy) / 2, 0); m.scale.set(1, L, 1); m.rotation.set(0, 0, Math.atan2(dy, dx) - Math.PI / 2);
     this.webT = 2;
+  }
+  spawnPuddle(p) {
+    let best = null;
+    for (const pl of this.stage.plats) if (p.x > pl.x0 && p.x < pl.x1 && p.y - pl.y > -0.6 && p.y - pl.y < 1.0 && (!best || pl.y > best.y)) best = pl;
+    if (!best) return;
+    const mine = this.puddles.filter(d => d.owner === p.owner);
+    if (mine.length >= 2) { const old = mine[0]; this.release(old); this.puddles.splice(this.puddles.indexOf(old), 1); }
+    const d = this.take('puddle', makePuddle);
+    const hw = 0.85 * (p.owner ? p.owner.size : 1);
+    Object.assign(d, { owner: p.owner, plat: best, off: p.x - best.x0, x: p.x, y: best.y, hw, life: 240, max: 240 });
+    d.mesh.visible = true; d.mesh.scale.set(hw, 1, 0.55); d.mesh.position.set(d.x, d.y + 0.03, 0);
+    this.puddles.push(d);
+    this.fx.burst(p.x, best.y + 0.15, 0.2, '#ff6fd8', 10, 4, 0.45, 0.26, { up: 2, grav: 2 });
+    sound.sfx('splat');
+  }
+  updatePuddles() {
+    for (let i = this.puddles.length - 1; i >= 0; i--) {
+      const d = this.puddles[i];
+      d.life--; d.x = d.plat.x0 + d.off; d.y = d.plat.y;
+      d.mesh.position.set(d.x, d.y + 0.03, 0);
+      const a = Math.min(1, d.life / 40, (d.max - d.life + 1) / 6);
+      d.mesh.children[0].material.opacity = 0.78 * a; d.mesh.children[1].material.opacity = 0.9 * a;
+      if (this.frame % 7 === 0) this.fx.burst(d.x + (Math.random() - 0.5) * d.hw * 1.6, d.y + 0.1, 0.2, Math.random() < 0.5 ? '#ff6fd8' : '#fff6c8', 1, 1.2, 0.5, 0.2, { up: 1.5 });
+      for (const t of this.fighters) {
+        if (t === d.owner || t.state === 'dead' || !t.grounded || t.plat !== d.plat) continue;
+        if (Math.abs(t.x - d.x) < d.hw + t.w * 0.3) t.painted = Math.max(t.painted || 0, 24);
+      }
+      if (d.life <= 0) { this.release(d); this.puddles.splice(i, 1); }
+    }
   }
   spring(x, y) {
     const d = this.take('spring', makeSpring);
@@ -479,8 +523,10 @@ class Game {
     for (let i = this.projectiles.length - 1; i >= 0; i--) {
       const p = this.projectiles[i];
       p.vy -= p.grav * DT; p.x += p.vx * DT; p.y += p.vy * DT; p.life--;
+      if (p.hop) p.y = p.baseY + Math.abs(Math.sin(p.life * 0.32)) * 0.55;
       p.mesh.position.set(p.x, p.y, 0);
-      if (p.aim) p.mesh.rotation.set(0, 0, Math.atan2(p.vy, p.vx)); else { p.mesh.rotation.z += p.spin * DT; p.mesh.rotation.y += p.spin * 0.3 * DT; }
+      if (p.hop) p.mesh.rotation.set(0, 0, Math.sin(p.life * 0.64) * 0.25 * Math.sign(p.vx));
+      else if (p.aim) p.mesh.rotation.set(0, 0, Math.atan2(p.vy, p.vx)); else { p.mesh.rotation.z += p.spin * DT; p.mesh.rotation.y += p.spin * 0.3 * DT; }
       if (this.frame % 2 === 0) this.fx.trail(p.x, p.y, p.color, p.glowTrail ? 0.5 : 0.35);
       let dead = p.life <= 0;
       if (p.bounce && p.vy < 0) {
@@ -496,15 +542,20 @@ class Game {
           if (res) { dead = true; if (res !== 'shield') this.onHitFx(p.owner, res, p.x, p.y); }
         }
       }
+      if (!dead && p.puddle && p.vy < 0) {
+        for (const pl of this.stage.plats) if (pl.soft && p.x > pl.x0 && p.x < pl.x1 && p.y - p.r <= pl.y && p.y - p.r - p.vy * DT >= pl.y - 0.05) { dead = true; break; }
+      }
       const m = this.stage.main;
       if (!dead && p.x > m.x0 && p.x < m.x1 && p.y < m.top + (p.bounce ? -0.1 : 0.2) && p.y > m.bottom) dead = true;
       if (Math.abs(p.x) > 30 || p.y < -15) dead = true;
       if (dead) {
+        if (p.puddle) this.spawnPuddle(p);
         if (p.explode) this.explode(p.x, p.y, p.owner, p.hb, p.explode, true);
         else { this.fx.burst(p.x, p.y, 0.2, p.breakColor, 14, 6, 0.5, 0.3, { grav: 2 }); if (p.type === 'block') sound.sfx('break'); }
         this.release(p); this.projectiles.splice(i, 1);
       }
     }
+    this.updatePuddles();
     for (let i = this.decor.length - 1; i >= 0; i--) {
       const d = this.decor[i];
       if (d.delay > 0) { d.delay--; continue; }
@@ -629,6 +680,41 @@ function makeEnergyShot(type) {
   shell.scale.setScalar(1.21);
   group.add(new THREE.Mesh(geometry, core), shell);
   return group;
+}
+function makePaintGlob() {
+  const g = new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.IcosahedronGeometry(0.3, 1), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff6fd8').multiplyScalar(1.6), toneMapped: false })));
+  const drop = new THREE.Mesh(new THREE.SphereGeometry(0.15, 10, 8), new THREE.MeshBasicMaterial({ color: new THREE.Color('#7fe8ff').multiplyScalar(1.5), toneMapped: false }));
+  drop.position.set(-0.22, 0.12, 0.05); g.add(drop);
+  const star = new THREE.Mesh(new THREE.OctahedronGeometry(0.09), new THREE.MeshBasicMaterial({ color: new THREE.Color('#fff6c8').multiplyScalar(2), toneMapped: false }));
+  star.position.set(0.14, 0.2, 0.18); g.add(star);
+  const aura = new THREE.Mesh(new THREE.IcosahedronGeometry(0.42, 1), new THREE.MeshBasicMaterial({ color: '#c58cff', transparent: true, opacity: 0.35, depthWrite: false, toneMapped: false }));
+  g.add(aura);
+  return g;
+}
+function makeDoodle() {
+  // a hand-painted comet critter: a chunky five-point star with eyes and a paint-streak tail
+  const g = new THREE.Group();
+  const s = new THREE.Shape();
+  for (let i = 0; i < 10; i++) { const a = Math.PI / 2 + i * Math.PI / 5, r = i % 2 ? 0.24 : 0.55; const x = Math.cos(a) * r, y = Math.sin(a) * r; if (i) s.lineTo(x, y); else s.moveTo(x, y); }
+  s.closePath();
+  const geo = new THREE.ExtrudeGeometry(s, { depth: 0.22, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1 }).translate(0, 0, -0.11);
+  g.add(new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: new THREE.Color('#ffd76a').multiplyScalar(1.5), toneMapped: false })));
+  const outline = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({ color: '#ff6fd8', side: THREE.BackSide, toneMapped: false }));
+  outline.scale.setScalar(1.14); g.add(outline);
+  const eyeM = new THREE.MeshBasicMaterial({ color: '#2a1840' });
+  for (const x of [0.03, 0.17]) { const e = new THREE.Mesh(new THREE.BoxGeometry(0.07, 0.12, 0.05), eyeM); e.position.set(x, 0.06, 0.2); g.add(e); }
+  const tailM = [new THREE.MeshBasicMaterial({ color: new THREE.Color('#7fe8ff').multiplyScalar(1.4), toneMapped: false }), new THREE.MeshBasicMaterial({ color: new THREE.Color('#b28cff').multiplyScalar(1.4), toneMapped: false })];
+  for (let i = 0; i < 3; i++) { const t = new THREE.Mesh(new THREE.BoxGeometry(0.34 - i * 0.07, 0.12 - i * 0.02, 0.08), tailM[i % 2]); t.position.set(-0.55 - i * 0.26, -0.04 + i * 0.05, -0.02); g.add(t); }
+  return g;
+}
+function makePuddle() {
+  const g = new THREE.Group();
+  const outer = new THREE.Mesh(new THREE.CylinderGeometry(1, 1, 0.04, 22), new THREE.MeshBasicMaterial({ color: new THREE.Color('#ff6fd8').multiplyScalar(1.2), transparent: true, opacity: 0.78, depthWrite: false, toneMapped: false }));
+  const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 0.6, 0.06, 18), new THREE.MeshBasicMaterial({ color: new THREE.Color('#7fe8ff').multiplyScalar(1.3), transparent: true, opacity: 0.9, depthWrite: false, toneMapped: false }));
+  inner.position.set(0.2, 0.01, 0.1);
+  g.add(outer, inner);
+  return g;
 }
 function makeWebBall() {
   const g = new THREE.Group(); const m = new THREE.MeshBasicMaterial({ color: '#f8f8ff' });

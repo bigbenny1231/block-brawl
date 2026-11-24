@@ -73,7 +73,7 @@ export class Fighter {
   get h() { return this.c.h * this.size; }
   get w() { return this.c.w * this.size; }
   get weight() { return this.c.weight * this.size * (this.buffs.giant ? 1.25 : 1) * (this.boss ? 1.6 : 1); }
-  get spd() { return this.buffs.speed ? 1.45 : 1; }
+  get spd() { return (this.buffs.speed ? 1.45 : 1) * (this.painted > 0 ? 0.6 : 1); }
   get powerMul() { return (this.buffs.power ? 1.5 : 1) * (this.buffs.giant ? 1.3 : 1) * (this.boss ? 1.25 : 1) * (this.c.rage ? 1 + Math.min(0.25, this.pct / 600) : 1); }
   get dead() { return this.state === 'dead'; }
   get out() { return this.stocks <= 0 && this.state === 'dead'; }
@@ -81,7 +81,7 @@ export class Fighter {
     Object.assign(this, { x, y, vx: 0, vy: 0, kbx: 0, kby: 0, facing, grounded: false, plat: null, jumps: this.c.jumps, pct: 0,
       state: 'air', stateT: 0, move: null, moveKey: null, invuln: 0, shieldHP: 100, hitstun: 0, launched: false, fastFall: false,
       dropT: 0, ledgeCD: 0, upUsed: false, airDodged: false, rushUsed: false, blinkUsed: false, lag: 0, spec: null, specData: {},
-      lastHitter: null, lastHitT: 0, hitFlash: 0, noGrav: false, respawnT: 0, victory: false, ledgeSide: 0, shieldStun: 0, helplessT: 0, held: null, combo: 0, comboT: 0 });
+      lastHitter: null, lastHitT: 0, hitFlash: 0, noGrav: false, respawnT: 0, victory: false, ledgeSide: 0, shieldStun: 0, helplessT: 0, held: null, combo: 0, comboT: 0, painted: 0 });
     if (this.buffs) for (const k in this.buffs) this.buffs[k] = 0;
     this.size = this.baseSize || 1;
     this.rig.root.visible = true;
@@ -103,6 +103,11 @@ export class Fighter {
     if (this.shieldStun > 0) this.shieldStun--;
     this.stateT++;
     this.noGrav = false; this.armor = false;
+    if (this.painted > 0) {
+      // sticky paint (Nebulo): slows movement and drips while it lasts
+      this.painted--;
+      if (this.painted % 9 === 0) g.fx.burst(this.x, this.y + this.h * 0.35, 0.2, this.painted % 18 ? '#ff6fd8' : '#7fe8ff', 2, 1.5, 0.5, 0.22, { grav: 2 });
+    }
     this.tickBuffs();
     if (this.state !== 'shield') this.shieldHP = Math.min(100, this.shieldHP + 0.14);
     const f = this.stateT;
@@ -596,6 +601,7 @@ export class Fighter {
     this.kbx = kx; this.kby = ky; this.vx = 0; this.vy = 0;
     if (ky > 0.5) { this.grounded = false; this.plat = null; }
     this.hitstun = Math.round(Math.max(8, spd * 1.25));
+    if (hb.paint) { this.painted = Math.max(this.painted || 0, hb.paint); g.fx.burst(this.x, this.y + this.h * 0.5, 0.3, '#ff6fd8', 12, 4, 0.5, 0.28); }
     if (hb.web) { this.hitstun = 48; this.webbed = 48; g.fx.burst(this.x, this.y + this.h * 0.5, 0.4, '#ffffff', 16, 4, 0.6, 0.3); }
     if (this.id === 'bolt' && dmg > 3) g.fx.burst(this.x, this.y + this.h * 0.5, 0.3, '#ffd23a', 14, 9, 0.9, 0.3, { grav: 1.2, drag: 1 });
     if (this.held) { g.dropHeld(this); }
@@ -718,6 +724,7 @@ export class Fighter {
     else if (this.buffs.star > 0) { em = 0.55; ec = new THREE.Color().setHSL((time * 2) % 1, 1, 0.5).getHex(); }
     else if (this.buffs.power > 0) { em = 0.25 + Math.sin(time * 12) * 0.1; ec = 0xff3020; }
     else if (this.webbed > 0) { em = 0.3; ec = 0xffffff; }
+    else if (this.painted > 0) { em = 0.3; ec = 0xd04cff; }
     else if (this.invuln > 0 && st !== 'ledge') { em = (Math.sin(time * 30) * 0.5 + 0.5) * 0.18; ec = 0x88ccff; }
     else if (st === 'helpless') { em = 0; }
     if (em > 0) { mats.matte.emissive.setHex(ec).multiplyScalar(em); mats.metal.emissive.setHex(ec).multiplyScalar(em); }

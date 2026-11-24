@@ -2,16 +2,17 @@
 import { CHARS, CHAR_ORDER, PALETTES, HATS } from './characters.js';
 import { DEMON_HUNTER_IDS } from './demon-hunters.js';
 import { WORKSHOP_IDS } from './workshop-fighters.js';
+import { SHELL_IDS } from './shell-kings.js';
 
 const KEY = 'bb.profile.v2';
 export const KO_FX = { classic: { name: 'CLASSIC BEAM' }, fireworks: { name: 'FIREWORKS' }, lightning: { name: 'THUNDERCLAP' }, confetti: { name: 'CONFETTI' }, voidburst: { name: 'VOID BURST' }, pixels: { name: 'PIXEL SHATTER' } };
 export const POSES = { default: { name: 'SIGNATURE' }, cheer: { name: 'VICTORY CHEER' }, dance: { name: 'BLOCK DANCE' }, flex: { name: 'POWER FLEX' }, wave: { name: 'FRIENDLY WAVE' }, spin: { name: 'TORNADO SPIN' } };
 export const TITLES = { rookie: 'ROOKIE', brawler: 'BRAWLER', itemhoarder: 'ITEM HOARDER', speedster: 'SPEEDSTER', heavyhitter: 'HEAVY HITTER', champion: 'CHAMPION', bosslayer: 'BOSS SLAYER', legend: 'LEGEND', daily: 'DAILY GRINDER', collector: 'COLLECTOR', untouchable: 'UNTOUCHABLE' };
 
-export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper', 'venomaw', 'gammoth', ...DEMON_HUNTER_IDS, ...WORKSHOP_IDS];
+export const STARTERS = ['blockjack', 'bristle', 'voidwalker', 'gogo', 'malgore', 'bolt', 'pipper', 'venomaw', 'gammoth', ...DEMON_HUNTER_IDS, ...WORKSHOP_IDS, ...SHELL_IDS];
 // Added starters and cosmetics are granted to new and existing saves.
 export const STARTER_PACK = {
-  chars: ['venomaw', 'gammoth', ...DEMON_HUNTER_IDS, ...WORKSHOP_IDS],
+  chars: ['venomaw', 'gammoth', ...DEMON_HUNTER_IDS, ...WORKSHOP_IDS, ...SHELL_IDS],
   skin: ['frost', 'crimson', 'gold', 'toxic', 'stonehide'],
   hat: ['crown', 'shades', 'phones'],
   ko: ['fireworks', 'lightning', 'voidburst'],
