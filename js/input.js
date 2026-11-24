@@ -10,6 +10,7 @@ export class Input {
     this.map = map;
     addEventListener('keydown', e => {
       const k = map[e.key.toLowerCase()]; if (!k) return;
+      if (e.key === ' ' && e.target.closest?.('#select.show button')) return;
       if (!e.repeat) { this.edge.add(k); }
       this.keys.add(k); if (e.key === ' ' || e.key.startsWith('Arrow')) e.preventDefault();
     });

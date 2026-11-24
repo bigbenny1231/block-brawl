@@ -186,7 +186,7 @@ function makePortraits() {
     const hp = new THREE.Vector3(); p.rig.head.getWorldPosition(hp);
     const c = CHARS[id];
     const headSize = c.portraitSize ?? ({ malgore: 1.0, gogo: 0.75, gammoth: 0.78, venomaw: 0.7 }[id] || 0.6);
-    hp.y += headSize * 0.25;
+    hp.y += headSize * 0.25 + (c.portraitLift ?? 0);
     const yaw = BASE_YAW - 0.55;
     const d = headSize * 3.4 + 0.4;
     pc.position.set(hp.x + Math.sin(yaw) * d, hp.y + 0.1, hp.z + Math.cos(yaw) * d);
@@ -229,6 +229,7 @@ const sound = new Sound();
 const input = new Input();
 input.bindTouch($('#touch'));
 const EMPTY = { x: 0, y: 0, attackP: false, specialP: false, jumpP: false, jumpH: false, shieldH: false, shieldP: false, xTap: false, downTap: false };
+const ENERGY_SHOTS = new Set(['spiritBlade', 'heart', 'soulFire', 'pursuitDrone', 'wrappedGift', 'protonBolt']);
 
 class Game {
   constructor() {
@@ -242,7 +243,8 @@ class Game {
     this.blockGeo = new THREE.BoxGeometry(0.6, 0.6, 0.6);
     this.blockMats = [bt.grassSide(), bt.grassSide(), bt.grassTop(), bt.dirt(), bt.grassSide(), bt.grassSide()].map(t => new THREE.MeshStandardMaterial({ map: t, roughness: 0.9 }));
     this.pillarMat = new THREE.MeshStandardMaterial({ map: bt.stone(), roughness: 0.9, transparent: true });
-    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], spiritBlade: [], heart: [], soulFire: [], pursuitDrone: [], paintGlob: [], doodle: [], puddle: [] };
+    this.pool = { block: [], banana: [], pillar: [], arrow: [], fireball: [], web: [], bomb: [], spring: [], paintGlob: [], doodle: [], puddle: [] };
+    for (const type of ENERGY_SHOTS) this.pool[type] = [];
     this.puddles = [];
     this.webMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 1, 5), new THREE.MeshBasicMaterial({ color: '#f4f4ff' })); this.webMesh.visible = false; world.add(this.webMesh); this.webT = 0;
     this.tendrils = [];
@@ -379,8 +381,8 @@ class Game {
       p = this.take('fireball', makeFireball);
       Object.assign(p, { x: owner.x + owner.facing * 0.7, y: owner.y + owner.h * 0.6, vx: owner.facing * 11, vy: -2, grav: 30, bounce: 8.5, life: 95, r: 0.3, spin: -owner.facing * 14,
         hb: { dmg: 5, kb: 4, g: 0.5, a: 35, r: 0.3 }, color: '#ff8020', breakColor: '#ff6010', glowTrail: true });
-    } else if (type === 'spiritBlade' || type === 'heart' || type === 'soulFire' || type === 'pursuitDrone') {
-      const { speed, rise = 0, dmg, size, y } = opts;
+    } else if (ENERGY_SHOTS.has(type)) {
+      const { speed, rise = 0, gravity = 0, spin = 0, dmg, size, y } = opts;
       const [core, aura] = owner.c.fx;
       const radius = size * owner.size;
       p = this.take(type, () => makeEnergyShot(type));
@@ -389,8 +391,8 @@ class Game {
       p.mesh.children[1].material.color.set(aura);
       Object.assign(p, {
         x: owner.x + owner.facing * (owner.w / 2 + radius), y: owner.y + owner.h * y,
-        vx: owner.facing * speed, vy: rise, grav: 0, life: 42, r: radius,
-        aim: type !== 'heart', spin: 0, glowTrail: true, color: aura, breakColor: core,
+        vx: owner.facing * speed, vy: rise, grav: gravity, life: 42, r: radius,
+        aim: type !== 'heart' && type !== 'wrappedGift', spin: spin * owner.facing, glowTrail: true, color: aura, breakColor: core,
         hb: { dmg, kb: 4 + dmg * 0.24, g: 0.55 + dmg * 0.035, a: 39, r: radius },
       });
       opts = null;
@@ -650,6 +652,33 @@ function makeEnergyShot(type) {
   const group = new THREE.Group();
   const core = new THREE.MeshBasicMaterial({ toneMapped: false });
   const aura = new THREE.MeshBasicMaterial({ toneMapped: false, transparent: true, opacity: 0.48, depthWrite: false });
+  if (type === 'wrappedGift') {
+    const longitudinal = new THREE.Mesh(new THREE.BoxGeometry(0.34, 1.58, 1.52), core);
+    const glow = new THREE.Mesh(new THREE.BoxGeometry(1.58, 1.59, 1.51), aura);
+    aura.opacity = 0.20;
+    const paper = new THREE.Mesh(new THREE.BoxGeometry(1.43, 1.43, 1.36), stdM('#bb1f3e'));
+    const cross = new THREE.Mesh(new THREE.BoxGeometry(1.51, 1.54, 0.27), core);
+    group.add(longitudinal, glow, paper, cross);
+    for (const side of [-1, 1]) {
+      const bow = new THREE.Mesh(new THREE.BoxGeometry(0.49, 0.18, 0.34), core);
+      bow.position.set(side * 0.22, 0.89, 0);
+      bow.rotation.z = side * 0.28;
+      group.add(bow);
+    }
+    return group;
+  }
+  if (type === 'protonBolt') {
+    const arc = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-1.6, 0, 0),
+      new THREE.Vector3(-0.90, 0.32, -0.15),
+      new THREE.Vector3(-0.18, -0.29, 0.14),
+      new THREE.Vector3(0.47, 0.31, 0.01),
+      new THREE.Vector3(1.14, 0, 0),
+    ]);
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(arc, 12, 0.11, 6, false), core),
+      new THREE.Mesh(new THREE.TubeGeometry(arc, 12, 0.27, 6, false), aura));
+    return group;
+  }
   if (type === 'pursuitDrone') {
     const eye = new THREE.Mesh(new THREE.SphereGeometry(0.36, 10, 6).scale(1.05, 0.78, 0.55), core);
     eye.position.set(0.34, 0.04, 0.91);
@@ -835,11 +864,16 @@ document.addEventListener('pointerdown', e => {
 const SCREENS = ['loading', 'title', 'menu', 'select', 'setup', 'ladder', 'locker', 'shop', 'quests', 'stats', 'settings', 'hud', 'results', 'pause'];
 let clickGuard = 0, swallowClick = false;
 document.addEventListener('pointerdown', () => { swallowClick = false; }, true);
-document.addEventListener('click', e => { if ((swallowClick || performance.now() < clickGuard) && !e.target.closest('#touch')) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
+document.addEventListener('click', e => { if (e.detail > 0 && (swallowClick || performance.now() < clickGuard) && !e.target.closest('#touch')) { swallowClick = false; e.stopPropagation(); e.preventDefault(); } }, true);
 let curScreen = null;
 function showScreen(id) {
   if (id !== curScreen) { clickGuard = performance.now() + 380; swallowClick = true; curScreen = id; }
-  for (const s of SCREENS) { const el = $('#' + s); if (el) el.classList.toggle('show', s === id || (id === 'pause' && s === 'hud')); }
+  for (const s of SCREENS) {
+    const el = $('#' + s);
+    if (!el) continue;
+    el.classList.toggle('show', s === id || (id === 'pause' && s === 'hud'));
+    el.inert = s !== id;
+  }
   $('#touch').classList.toggle('show', (id === 'hud') && (isTouch || params.has('touch')));
   document.body.classList.toggle('touchui', isTouch || params.has('touch'));
   refreshCoins();
@@ -873,27 +907,76 @@ document.querySelectorAll('[data-go]').forEach(b => b.addEventListener('click', 
 $('#mSettings').onclick = () => { sound.sfx('select'); goSettings(); };
 
 // ------------------------------------------------------------------ fighter select
+const ROSTER_COLUMNS = 14;
+const VISIBLE_ROSTER_ROWS = 2;
+const roster = $('#roster');
+const rosterPrev = $('#rosterPrev'), rosterNext = $('#rosterNext');
+let firstRosterRow = 0;
+
+function showRosterRows(first) {
+  const total = roster.children.length;
+  const lastStart = Math.max(0, total - VISIBLE_ROSTER_ROWS);
+  firstRosterRow = clamp(first, 0, lastStart);
+  const end = Math.min(total, firstRosterRow + VISIBLE_ROSTER_ROWS);
+  Array.from(roster.children).forEach((row, i) => { row.hidden = i < firstRosterRow || i >= end; });
+  rosterPrev.setAttribute('aria-disabled', firstRosterRow === 0);
+  rosterNext.setAttribute('aria-disabled', firstRosterRow === lastStart);
+  const range = end === firstRosterRow + 1 ? String(end) : `${firstRosterRow + 1}–${end}`;
+  $('#rosterPosition').textContent = `${range} / ${total}`;
+}
+
+function browseRosterRows(direction) {
+  const previous = firstRosterRow;
+  const card = document.activeElement.closest('#roster .card');
+  showRosterRows(previous + direction);
+  if (firstRosterRow === previous) return;
+  if (card?.parentElement.hidden) (direction > 0 ? rosterNext : rosterPrev).focus();
+  sound.sfx('move');
+}
+
+function revealSelectedRosterRow() {
+  const row = Math.floor(CHAR_ORDER.indexOf(sel.char) / ROSTER_COLUMNS);
+  showRosterRows(clamp(firstRosterRow, row - VISIBLE_ROSTER_ROWS + 1, row));
+}
+
+rosterPrev.onclick = () => browseRosterRows(-1);
+rosterNext.onclick = () => browseRosterRows(1);
+
 function buildSelect() {
-  const r = $('#roster'); r.innerHTML = '';
-  CHAR_ORDER.forEach((id, i) => {
-    const c = CHARS[id];
-    const d = document.createElement('button'); d.className = 'card'; d.dataset.id = id; d.style.setProperty('--cc', c.color); d.style.animationDelay = (i * 0.025) + 's';
-    r.appendChild(d);
-    d.addEventListener('click', () => {
-      if (!profile.isUnlocked(id)) { sound.sfx('back'); toastSel(CHARS[id].name + ' · ' + profile.unlockHint(id) + ' OR BUY IN SHOP'); return; }
-      if (sel.char !== id) { sel.char = id; sound.sfx('select'); refreshSelect(true); }
+  roster.replaceChildren();
+  for (let start = 0; start < CHAR_ORDER.length; start += ROSTER_COLUMNS) {
+    const ids = CHAR_ORDER.slice(start, start + ROSTER_COLUMNS);
+    const row = document.createElement('div');
+    row.className = 'roster-row';
+    row.classList.toggle('partial', ids.length < ROSTER_COLUMNS);
+    row.style.setProperty('--roster-count', ids.length);
+    row.setAttribute('role', 'group');
+    row.setAttribute('aria-label', `Roster row ${start / ROSTER_COLUMNS + 1}`);
+    ids.forEach((id, i) => {
+      const c = CHARS[id];
+      const d = document.createElement('button'); d.className = 'card'; d.dataset.id = id; d.style.setProperty('--cc', c.color); d.style.animationDelay = (i * 0.025) + 's';
+      row.appendChild(d);
+      d.addEventListener('click', () => {
+        if (!profile.isUnlocked(id)) { sound.sfx('back'); toastSel(c.name + ' · ' + profile.unlockHint(id) + ' OR BUY IN SHOP'); return; }
+        if (sel.char !== id) { sel.char = id; sound.sfx('select'); refreshSelect(true); }
+      });
     });
-  });
+    roster.appendChild(row);
+  }
+  revealSelectedRosterRow();
   $('#selNext').onclick = () => { sound.sfx('select'); if (sel.mode === 'classic') startClassic(); else goSetup(); };
   $('#selLocker').onclick = () => { sound.sfx('select'); lockerChar = sel.char; goLocker(true); };
 }
 function toastSel(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on', 'menu'); t.style.zIndex = 50; clearTimeout(toastSel.h); toastSel.h = setTimeout(() => t.classList.remove('on'), 2400); document.body.appendChild(t); }
 function refreshSelect(changed) {
   const c = CHARS[sel.char];
-  document.querySelectorAll('.card').forEach(d => {
+  roster.querySelectorAll('.card').forEach(d => {
     const id = d.dataset.id, un = profile.isUnlocked(id), f = profile.fighter(id);
+    const fighter = CHARS[id];
     d.classList.toggle('on', id === sel.char); d.classList.toggle('locked', !un);
-    d.innerHTML = `<img src="${portraits[id]}" alt="">${un ? `<div class="lvb">LV${f.lvl}</div>` : `<div class="lock">${lockSvg}${profile.unlockHint(id).replace('REACH ', '')}</div>`}<div class="nm">${un ? CHARS[id].name : '???'}</div>`;
+    d.setAttribute('aria-pressed', id === sel.char);
+    d.setAttribute('aria-label', un ? fighter.name : `Locked fighter, ${profile.unlockHint(id)}`);
+    d.innerHTML = `<img src="${portraits[id]}" alt="">${un ? `<div class="lvb">LV${f.lvl}</div>` : `<div class="lock">${lockSvg}${profile.unlockHint(id).replace('REACH ', '')}</div>`}<div class="nm">${un ? (fighter.cardName ?? fighter.name) : '???'}</div>`;
   });
   $('#selMode').textContent = { vs: 'SMASH', classic: 'CLASSIC LADDER', training: 'TRAINING' }[sel.mode];
   $('#selNext span').textContent = sel.mode === 'classic' ? 'START' : 'NEXT';
@@ -1116,7 +1199,7 @@ function ensureAttract() {
 }
 function goTitle() { mode = 'title'; showScreen('title'); game.attract = false; ensureAttract(); }
 function goMenu() { mode = 'menu'; showScreen('menu'); ensureAttract(); refreshMenu(); sound.music('menu'); }
-function goSelect() { mode = 'select'; showMode = 'select'; showScreen('select'); refreshSelect(true); sound.music('menu'); }
+function goSelect() { mode = 'select'; showMode = 'select'; showScreen('select'); revealSelectedRosterRow(); refreshSelect(true); sound.music('menu'); }
 function goBack() {
   if (mode === 'select') goMenu();
   else if (mode === 'setup') goSelect();
@@ -1239,9 +1322,16 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (mode === 'title' && (k === 'enter' || k === ' ' || k === 'j')) { sound.init(); applySettings(); sound.sfx('select'); goMenu(); }
   else if (mode === 'select') {
-    if (k === 'enter') $('#selNext').click();
-    if (k === 'arrowright' || k === 'arrowleft') { const un = CHAR_ORDER.filter(id => profile.isUnlocked(id)); const i = un.indexOf(sel.char); sel.char = un[(i + (k === 'arrowright' ? 1 : un.length - 1)) % un.length]; sound.sfx('select'); refreshSelect(true); }
-    if (k === 'escape') goBack();
+    if (k === 'arrowup' || k === 'arrowdown') browseRosterRows(k === 'arrowdown' ? 1 : -1);
+    else if (k === 'arrowright' || k === 'arrowleft') {
+      const unlocked = CHAR_ORDER.filter(id => profile.isUnlocked(id));
+      const i = unlocked.indexOf(sel.char);
+      sel.char = unlocked[(i + (k === 'arrowright' ? 1 : unlocked.length - 1)) % unlocked.length];
+      revealSelectedRosterRow();
+      sound.sfx('select'); refreshSelect(true);
+      if (e.target.closest?.('#roster .card')) roster.querySelector('.card.on')?.focus();
+    } else if (k === 'enter' && !e.target.closest?.('#select button')) $('#selNext').click();
+    else if (k === 'escape') goBack();
   } else if (mode === 'setup' && k === 'enter') startFight();
   else if (mode === 'fight' && (k === 'escape' || k === 'p')) pause(!game.paused);
   else if (mode === 'results' && k === 'enter') $('#rAgain').click();

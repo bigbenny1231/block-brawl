@@ -72,6 +72,51 @@ const specials = {
       jet: { speed: 15.2, frames: 10 }, sfx: 'fire' },
     victory: 'dance',
   },
+  grinch: {
+    neutral: { kind: 'strike', start: 10, end: 29, active: 7, r: 0.90, dmg: 11, reach: 1.25, y: 0.47, sfx: 'swing' },
+    up: { start: 5, end: 34, rise: 21.7, steer: 0.93, r: 1.01, dmg: 7, reach: 0.25, spin: true, sfx: 'spring' },
+    victory: 'dance',
+  },
+  santa: {
+    neutral: { kind: 'projectile', start: 17, end: 41, sfx: 'throw',
+      shots: [{ kind: 'wrappedGift', speed: 13.5, rise: 3.4, gravity: 14, spin: 7, dmg: 13, size: 0.52, y: 0.60 }] },
+    up: { start: 9, end: 41, rise: 18.3, steer: 0.78, r: 1.32, dmg: 9, reach: 0.52,
+      jet: { speed: 15.2, frames: 12 }, sfx: 'spring' },
+    victory: 'wave',
+  },
+  ghostface: {
+    neutral: { kind: 'dash', start: 5, end: 26, active: 9, r: 0.73, dmg: 10, reach: 0.67, y: 0.54, speed: 21, sfx: 'rush' },
+    up: { start: 5, end: 32, rise: 19.6, steer: 1.01, r: 1.15, dmg: 6, reach: 0.18, spin: true },
+    victory: 'spin',
+  },
+  'peter-venkman': {
+    neutral: { kind: 'projectile', start: 8, end: 30, armAim: -1.18, sfx: 'blaster',
+      shots: [{ kind: 'protonBolt', speed: 23, dmg: 8, size: 0.36, y: 0.55 }] },
+    up: { start: 6, end: 33, rise: 19.4, steer: 0.80, r: 0.94, dmg: 7, reach: 0.30,
+      jet: { speed: 14.0, frames: 6 }, sfx: 'blaster' },
+    victory: 'wave',
+  },
+  'ray-stantz': {
+    neutral: { kind: 'burst', start: 14, end: 39, active: 10, r: 1.03, dmg: 12, reach: 1.22, y: 0.21, sfx: 'boom' },
+    up: { start: 8, end: 37, rise: 21.6, steer: 0.65, r: 1.10, dmg: 9, reach: 0.15, sfx: 'spring' },
+    victory: 'cheer',
+  },
+  'egon-spengler': {
+    neutral: { kind: 'burst', start: 9, end: 30, active: 6, r: 1.62, dmg: 9, y: 0.53, sfx: 'blaster' },
+    up: { start: 5, end: 35, rise: 19.3, steer: 1.16, r: 0.89, dmg: 6, reach: 0.13,
+      jet: { speed: 14.8, frames: 9 }, sfx: 'blaster' },
+    victory: 'wave',
+  },
+  'winston-zeddemore': {
+    neutral: { kind: 'projectile', start: 13, end: 38, armAim: -1.18, sfx: 'blaster', shots: [
+      { kind: 'protonBolt', speed: 20, rise: -2.6, dmg: 4, size: 0.27, y: 0.50 },
+      { kind: 'protonBolt', speed: 22, rise: 0.1, dmg: 4, size: 0.30, y: 0.54 },
+      { kind: 'protonBolt', speed: 19, rise: 2.9, dmg: 4, size: 0.27, y: 0.58 },
+    ] },
+    up: { start: 7, end: 37, rise: 20.1, steer: 0.86, r: 1.23, dmg: 8, reach: 0.20,
+      jet: { speed: 15.4, frames: 9 }, sfx: 'blaster' },
+    victory: 'flex',
+  },
 };
 
 function neutralSpecial(ft, f, X, m) {
