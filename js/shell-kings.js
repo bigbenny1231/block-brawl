@@ -10,7 +10,7 @@ const PAINT = ['#ff6fd8', '#7fe8ff', '#ffd76a', '#b28cff'];
 
 // ---------------------------------------------------------------- Brimshell (magma turtle king)
 const B = {
-  hide: '#456779', hideD: '#2f4a5a', snout: '#5d8396', belly: '#cdb88c', bellyD: '#a8946a',
+  hide: '#335a70', hideD: '#233f4f', snout: '#4a7489', belly: '#cdb88c', bellyD: '#a8946a',
   shell: '#1c1920', rim: '#3a323f', iron: '#3b3138', bone: '#efe6d0', magma: '#ff7a1a', ember: '#ffb347',
 };
 
