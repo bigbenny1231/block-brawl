@@ -2,6 +2,7 @@
 import * as THREE from '../lib/three.module.min.js';
 import { DEMON_HUNTER_IDS, makeDemonHunters } from './demon-hunters.js';
 import { WORKSHOP_IDS, makeWorkshopFighters } from './workshop-fighters.js';
+import { SHELL_IDS, SHELL_PALETTES, makeShellFighters } from './shell-kings.js';
 
 const _c = new THREE.Color();
 export const BASE_YAW = Math.PI / 2 - 0.52;
@@ -685,4 +686,12 @@ Object.assign(HAT_FIT, {
   skiff: { y: 0.69, z: 0, front: 0.275, k: 0.85 },
   'hip-hop': { x: 0.24, y: 0.443, z: -0.103, front: 0.085, k: 0.72 },
   rivet: { y: 0.625, z: -0.02, front: 0.27 },
+});
+
+Object.assign(CHARS, makeShellFighters(P, assemble));
+CHAR_ORDER.push(...SHELL_IDS);
+Object.assign(PALETTES, SHELL_PALETTES);
+Object.assign(HAT_FIT, {
+  brimshell: { y: 0.66, z: 0.02, front: 0.36, k: 1.4 },
+  nebulo: { y: 0.53, z: 0.02, front: 0.3, k: 1.0 },
 });

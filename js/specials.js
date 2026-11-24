@@ -1,5 +1,6 @@
 // Block Brawl v2 - special moves for the v2 roster
 import { registerRosterMoves } from './roster-moves.js';
+import { registerShellMoves } from './shell-kings.js';
 
 const approach = (v, t, s) => (v < t ? Math.min(t, v + s) : Math.max(t, v - s));
 export const SPECIALS = {
@@ -309,3 +310,4 @@ export const SIGNATURE_VICTORY = {
 };
 
 registerRosterMoves(SPECIALS, SPECIAL_POSES, SIGNATURE_VICTORY, VICTORY_POSES);
+registerShellMoves(SPECIALS, SPECIAL_POSES, MOVE_MODS, SPECIAL_LAND, SIGNATURE_VICTORY);

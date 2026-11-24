@@ -208,12 +208,12 @@ body.touchui #toast{top:auto;bottom:12px}
 .ci-moves b{display:inline-block;min-width:22px;padding:0 5px;border-radius:4px;background:#ffffff22;text-align:center;margin-left:6px;font-family:"Arial Black",sans-serif}
 .ci-insp{font-size:9px;opacity:.55;letter-spacing:.08em;margin-top:2px}
 .sel-bottom{position:absolute;left:0;right:0;bottom:0;display:flex;align-items:flex-end;gap:12px;padding:0 var(--sr) max(10px,env(safe-area-inset-bottom)) var(--sl);background:linear-gradient(0deg,rgba(0,0,0,.8),rgba(0,0,0,0))}
-.roster{display:grid;grid-template-columns:repeat(13,auto);gap:min(1.4vh,6px) min(.62vw,7px);padding:3px 0 0 4px}
-.card{position:relative;width:min(5.1vw,14vh,78px);height:min(8.6vw,14vh,84px);border-radius:9px;overflow:hidden;transform:skewX(-8deg);background:linear-gradient(180deg,#2c2546,#120f1c);border:2px solid #ffffff25;transition:transform .15s cubic-bezier(.2,1.6,.4,1),border-color .15s,box-shadow .15s;animation:cardIn .4s cubic-bezier(.2,1.4,.4,1) both}
+.roster{display:grid;grid-template-columns:repeat(14,auto);gap:min(1.4vh,6px) min(.58vw,7px);padding:3px 0 0 4px}
+.card{position:relative;width:min(4.75vw,14vh,78px);height:min(8.6vw,14vh,84px);border-radius:9px;overflow:hidden;transform:skewX(-8deg);background:linear-gradient(180deg,#2c2546,#120f1c);border:2px solid #ffffff25;transition:transform .15s cubic-bezier(.2,1.6,.4,1),border-color .15s,box-shadow .15s;animation:cardIn .4s cubic-bezier(.2,1.4,.4,1) both}
 @keyframes cardIn{0%{opacity:0;transform:skewX(-8deg) translateY(20px)}100%{opacity:1}}
 .card::after{content:"";position:absolute;top:0;right:0;bottom:0;left:0;background:linear-gradient(180deg,rgba(255,255,255,.18),transparent 35%);pointer-events:none}
 .card img{position:absolute;top:0;right:0;bottom:0;left:0;width:100%;height:100%;object-fit:cover;transform:skewX(8deg) scale(1.15)}
-.card .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 1px 4px;font-size:min(.96vw,1.85vh,9px);text-align:center;font-style:italic;line-height:1.07;letter-spacing:.02em;overflow-wrap:anywhere;background:linear-gradient(0deg,rgba(0,0,0,.97),rgba(0,0,0,0))}
+.card .nm{position:absolute;left:0;right:0;bottom:0;padding:3px 1px 4px;font-size:min(.9vw,1.85vh,9px);text-align:center;font-style:italic;line-height:1.07;letter-spacing:.02em;overflow-wrap:anywhere;background:linear-gradient(0deg,rgba(0,0,0,.97),rgba(0,0,0,0))}
 .card .lvb{position:absolute;top:3px;right:5px;font-size:8px;padding:0 4px;border-radius:3px;background:rgba(0,0,0,.6);transform:skewX(8deg);z-index:2}
 .card.on{border-color:#fff;transform:skewX(-8deg) translateY(-4px) scale(1.08);z-index:2;box-shadow:0 0 0 2px var(--cc),0 0 24px var(--cc)}
 .card.on::before{content:"P1";position:absolute;top:3px;left:6px;z-index:3;font-size:9px;background:#ff3b4e;padding:0 5px;border-radius:3px;transform:skewX(8deg)}

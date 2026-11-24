@@ -85,6 +85,9 @@ export class Sound {
       case 'roar': this.tone('sawtooth', 95, 70, 0.45, 0.2); this.tone('sawtooth', 142, 100, 0.45, 0.12); this.noise(0.45, 0.2, 'bandpass', 500, 300, 1.2); break;
       case 'tendril': this.noise(0.16, 0.22, 'bandpass', 900, 300, 2); this.tone('sine', 180, 90, 0.14, 0.08); break;
       case 'chomp': this.noise(0.08, 0.35, 'bandpass', 1500, 600, 2); this.tone('square', 260, 110, 0.08, 0.12); break;
+      case 'breath': this.noise(0.55, 0.4, 'bandpass', 380, 1400, 0.8); this.tone('sawtooth', 72, 48, 0.5, 0.14); this.noise(0.4, 0.15, 'highpass', 2500, 5000, 1, 0.05); break;
+      case 'splat': this.noise(0.13, 0.32, 'lowpass', 1800, 260, 1.2); this.tone('sine', 440, 150, 0.12, 0.12); break;
+      case 'sparkle': for (let i = 0; i < 5; i++) this.tone('triangle', 1175 * Math.pow(1.19, i), 1175 * Math.pow(1.19, i), 0.14, 0.06, i * 0.045, null, 0.6); break;
       case 'web': this.noise(0.14, 0.2, 'highpass', 3000, 1500, 1); this.tone('sine', 1800, 600, 0.1, 0.06); break;
       case 'item': [660, 880, 1320].forEach((f, i) => this.tone('triangle', f, f, 0.12, 0.1, i * 0.05)); break;
       case 'pickup': this.tone('square', 520, 1040, 0.12, 0.12); this.tone('triangle', 1040, 1560, 0.15, 0.08, 0.06); break;
